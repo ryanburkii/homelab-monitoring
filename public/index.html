@@ -89,8 +89,7 @@ main {
 }
 .section-title .accent { color: var(--pink); margin-right: 0.5ch; }
 
-.machines-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-.services-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.machines-grid { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
 
 .card {
   position: relative;
@@ -150,67 +149,130 @@ main {
   color: var(--comment); margin-top: 0.4rem;
 }
 
-details.guests { margin-top: 0.8rem; border-top: 1px dashed var(--current-line); padding-top: 0.7rem; }
+details.inner-services,
+details.guests {
+  margin-top: 0.9rem;
+  border-top: 1px dashed var(--current-line);
+  padding-top: 0.7rem;
+}
+details.inner-services > summary,
 details.guests > summary {
   cursor: pointer; list-style: none;
   font-family: Rajdhani, monospace; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.12em; font-size: 0.72rem; color: var(--comment);
+  margin-bottom: 0.5rem;
 }
+details.inner-services > summary::-webkit-details-marker,
 details.guests > summary::-webkit-details-marker { display: none; }
+details.inner-services > summary::before,
 details.guests > summary::before { content: "▸ "; color: var(--pink); }
+details.inner-services[open] > summary::before,
 details.guests[open] > summary::before { content: "▾ "; }
-.guest-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  gap: 0.5rem; align-items: center;
-  font-family: "JetBrains Mono", monospace; font-size: 0.72rem;
-  padding: 0.25rem 0;
-}
-.guest-row .guest-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--comment); }
-.guest-row[data-status="running"] .guest-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
-.guest-row[data-status="stopped"] .guest-dot { background: var(--comment); }
-.guest-row .guest-name { color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.guest-row .guest-metric { color: var(--comment); }
 
-.service-card {
-  position: relative;
-  background: var(--surface);
-  border: 1px solid var(--current-line);
-  border-radius: 4px;
-  padding: 1rem;
-  display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start;
-  text-decoration: none; color: inherit;
-  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+.inner-service-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.inner-service-item {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.55rem;
+  background: var(--bg-alt);
+  border-radius: 3px;
+  border-left: 2px solid var(--purple);
+  text-decoration: none;
+  color: inherit;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  transition: background 0.15s ease;
 }
-.service-card::before {
-  content: ""; position: absolute; inset-block: 0; left: 0;
-  width: 3px; background: var(--purple); opacity: 0.8;
-  border-radius: 4px 0 0 4px;
-}
-.service-card:hover {
-  border-color: var(--purple); transform: translateY(-3px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px rgba(0,0,0,0.2);
-}
-.service-icon {
-  width: 48px; height: 48px;
+.inner-service-item:hover { background: var(--current-line); }
+.inner-service-item[data-status="down"] { border-left-color: var(--red); opacity: 0.75; }
+.inner-service-item .iss-icon {
+  width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
-  font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 1rem;
-  color: var(--purple);
-  filter: drop-shadow(0 0 6px var(--purple));
+  color: var(--purple); font-size: 0.62rem; font-weight: 700;
+  filter: drop-shadow(0 0 4px var(--purple));
 }
-.service-icon img { width: 48px; height: 48px; object-fit: contain; }
-.service-name {
-  font-family: Rajdhani, monospace; font-weight: 700; text-transform: uppercase;
-  font-size: 1rem; letter-spacing: 0.04em; color: var(--fg);
+.inner-service-item .iss-icon img { width: 22px; height: 22px; object-fit: contain; }
+.inner-service-item .iss-name {
+  color: var(--fg);
+  font-family: Rajdhani, monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.service-status {
-  font-family: "JetBrains Mono", monospace; font-size: 0.7rem; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--comment);
+.inner-service-item .iss-status {
+  color: var(--comment); text-transform: uppercase; letter-spacing: 0.06em;
   display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.68rem;
 }
-.service-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--comment); }
-.service-card[data-status="up"]   .service-status .dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
-.service-card[data-status="down"] .service-status .dot { background: var(--red);   box-shadow: 0 0 4px var(--red); }
+.inner-service-item .iss-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--comment); }
+.inner-service-item[data-status="up"]   .iss-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.inner-service-item[data-status="down"] .iss-dot { background: var(--red);   box-shadow: 0 0 4px var(--red); }
+
+.guest-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.guest-row {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  padding: 0.55rem 0.65rem;
+  background: var(--bg-alt);
+  border-radius: 3px;
+  border-left: 2px solid var(--current-line);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+}
+.guest-row[data-status="running"] { border-left-color: var(--green); }
+.guest-row[data-status="stopped"] { border-left-color: var(--comment); opacity: 0.55; }
+.guest-row-head {
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.guest-row-head .guest-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--comment);
+  animation: pulse 2.5s ease-in-out infinite;
+}
+.guest-row[data-status="running"] .guest-row-head .guest-dot {
+  background: var(--green); box-shadow: 0 0 4px var(--green);
+}
+.guest-row-head .guest-name {
+  color: var(--fg);
+  font-family: Rajdhani, monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.82rem;
+  flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.guest-row-head .guest-type {
+  color: var(--comment); text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.06em;
+}
+.guest-row-head .guest-vmid { color: var(--comment); }
+.guest-row-head .guest-uptime { color: var(--comment); }
+.guest-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.mini-stat { display: flex; align-items: center; gap: 0.4rem; }
+.mini-stat .mini-label {
+  color: var(--comment); font-size: 0.62rem;
+  text-transform: uppercase; letter-spacing: 0.06em; width: 1.6rem;
+}
+.mini-stat .mini-bar {
+  flex: 1; height: 4px; background: var(--current-line);
+  border-radius: 2px; overflow: hidden;
+}
+.mini-stat .mini-fill {
+  height: 100%; background: var(--purple); width: 0;
+  transition: width 0.4s ease, background 0.4s ease;
+}
+.mini-fill[data-level="low"]  { background: var(--purple); }
+.mini-fill[data-level="mid"]  { background: var(--cyan); }
+.mini-fill[data-level="high"] { background: var(--orange); }
+.mini-fill[data-level="crit"] { background: var(--red); }
+.mini-stat .mini-value { color: var(--fg); min-width: 2.5rem; text-align: right; font-size: 0.68rem; }
+.guest-net {
+  color: var(--cyan);
+  display: flex; justify-content: space-between;
+  font-size: 0.68rem;
+}
 
 .error-banner {
   background: var(--surface); border: 1px solid var(--red); border-radius: 4px;
@@ -241,10 +303,6 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   <section>
     <div class="section-title"><span class="accent">&gt;</span>MACHINES</div>
     <div class="machines-grid" id="machinesGrid"></div>
-  </section>
-  <section>
-    <div class="section-title"><span class="accent">&gt;</span>SERVICES</div>
-    <div class="services-grid" id="servicesGrid"></div>
   </section>
 </main>
 <footer><span class="prompt">$</span>homelab-dashboard — polling /api/stats every 5s</footer>
@@ -308,6 +366,10 @@ function renderMachineCard(machine, state) {
     <div class="stats"></div>
     <div class="net-row"><span class="rx">↓ —</span><span class="tx">↑ —</span></div>
     <div class="uptime-row">up —</div>
+    <details class="inner-services" open hidden>
+      <summary>services</summary>
+      <div class="inner-service-list"></div>
+    </details>
     <details class="guests" ${machine.type === 'proxmox' ? 'open' : 'hidden'}>
       <summary>guests</summary>
       <div class="guest-list"></div>
@@ -331,7 +393,7 @@ function statRow(label, pct) {
     </div>
   `;
 }
-function updateMachineCard(card, machine, state) {
+function updateMachineCard(card, machine, state, services) {
   card.dataset.status = state.status;
   const errorHolder = card.querySelector('.card-error') ?? (() => {
     const el = document.createElement('div');
@@ -351,33 +413,109 @@ function updateMachineCard(card, machine, state) {
   card.querySelector('.rx').textContent = `↓ ${formatRate(host?.netRx)}`;
   card.querySelector('.tx').textContent = `↑ ${formatRate(host?.netTx)}`;
   card.querySelector('.uptime-row').textContent = `up ${formatUptime(host?.uptime)}`;
-  const guestList = card.querySelector('.guest-list');
+
+  updateInnerServices(card, services);
+  updateGuestList(card, state, machine);
+}
+
+function updateInnerServices(card, services) {
+  const details = card.querySelector('details.inner-services');
+  const list = card.querySelector('.inner-service-list');
+  if (!services || services.length === 0) {
+    details.hidden = true;
+    list.innerHTML = '';
+    return;
+  }
+  details.hidden = false;
+  details.querySelector('summary').textContent = `services [${services.length}]`;
+  list.innerHTML = '';
+  for (const svc of services) {
+    const el = document.createElement('a');
+    el.className = 'inner-service-item';
+    el.dataset.status = svc.status;
+    el.href = svc.url;
+    el.target = '_blank';
+    el.rel = 'noopener';
+    el.innerHTML = `
+      <div class="iss-icon"></div>
+      <div class="iss-name">${escapeHtml(svc.name)}</div>
+      <div class="iss-status"><span class="iss-dot"></span><span class="iss-text">—</span></div>
+    `;
+    const iconEl = el.querySelector('.iss-icon');
+    const iconVal = svc.icon ?? '';
+    if (iconVal.endsWith('.svg') || iconVal.includes('/')) {
+      const img = document.createElement('img');
+      img.src = `icons/${iconVal}`;
+      img.alt = svc.name;
+      img.onerror = () => { iconEl.textContent = iconFallback(svc.name); };
+      iconEl.appendChild(img);
+    } else if (iconVal) {
+      iconEl.textContent = iconVal;
+    } else {
+      iconEl.textContent = iconFallback(svc.name);
+    }
+    el.querySelector('.iss-text').textContent =
+      svc.status === 'up' ? `up ${svc.responseTime ?? '—'}ms` : 'offline';
+    list.appendChild(el);
+  }
+}
+
+function updateGuestList(card, state, machine) {
+  const list = card.querySelector('.guest-list');
   const details = card.querySelector('details.guests');
   if (state.guests && state.guests.length > 0) {
     details.hidden = false;
     details.querySelector('summary').textContent = `guests [${state.guests.length}]`;
-    guestList.innerHTML = state.guests
+    list.innerHTML = state.guests
+      .slice()
       .sort((a, b) => (b.status === 'running') - (a.status === 'running') || a.name.localeCompare(b.name))
-      .map((g) => {
-        const cpu = g.cpuPct == null ? '—' : `${g.cpuPct.toFixed(0)}%`;
-        const mem = pctSafe(g.memUsed, g.memTotal);
-        const memPct = mem == null ? '—' : `${mem.toFixed(0)}%`;
-        return `
-          <div class="guest-row" data-status="${g.status}">
-            <span class="guest-dot"></span>
-            <span class="guest-name">${escapeHtml(g.name)}</span>
-            <span class="guest-metric">cpu ${cpu}</span>
-            <span class="guest-metric">mem ${memPct}</span>
-          </div>
-        `;
-      }).join('');
+      .map(renderGuestRow)
+      .join('');
   } else if (machine.type === 'proxmox') {
     details.hidden = false;
     details.querySelector('summary').textContent = 'guests [0]';
-    guestList.innerHTML = '';
+    list.innerHTML = '';
   } else {
     details.hidden = true;
   }
+}
+
+function renderGuestRow(g) {
+  const memPct = pctSafe(g.memUsed, g.memTotal);
+  const cpuLevel = levelFor(g.cpuPct);
+  const memLevel = levelFor(memPct);
+  const cpuVal = g.cpuPct == null ? '—' : `${g.cpuPct.toFixed(0)}%`;
+  const memVal = memPct == null ? '—' : `${memPct.toFixed(0)}%`;
+  const cpuWidth = g.cpuPct == null ? 0 : Math.min(100, g.cpuPct);
+  const memWidth = memPct == null ? 0 : Math.min(100, memPct);
+  const net = g.status === 'running'
+    ? `<div class="guest-net"><span>↓ ${formatRate(g.netRx)}</span><span>↑ ${formatRate(g.netTx)}</span></div>`
+    : '';
+  const uptime = g.status === 'running' ? formatUptime(g.uptime) : 'stopped';
+  return `
+    <div class="guest-row" data-status="${g.status}">
+      <div class="guest-row-head">
+        <span class="guest-dot"></span>
+        <span class="guest-name">${escapeHtml(g.name)}</span>
+        <span class="guest-type">${g.type}</span>
+        <span class="guest-vmid">${g.vmid}</span>
+        <span class="guest-uptime">${uptime}</span>
+      </div>
+      <div class="guest-stats">
+        <div class="mini-stat">
+          <span class="mini-label">CPU</span>
+          <div class="mini-bar"><div class="mini-fill" data-level="${cpuLevel}" style="width:${cpuWidth}%"></div></div>
+          <span class="mini-value">${cpuVal}</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-label">MEM</span>
+          <div class="mini-bar"><div class="mini-fill" data-level="${memLevel}" style="width:${memWidth}%"></div></div>
+          <span class="mini-value">${memVal}</span>
+        </div>
+      </div>
+      ${net}
+    </div>
+  `;
 }
 function setStat(card, metric, pct, valueText) {
   const row = card.querySelector(`.stat-row[data-metric="${metric}"]`);
@@ -408,6 +546,11 @@ function renderStats(data) {
   document.getElementById('globalStatusLabel').textContent = data.globalStatus;
   document.getElementById('lastPoll').textContent = `last poll ${new Date(data.lastPoll).toLocaleTimeString()}`;
 
+  const servicesByMachine = {};
+  for (const svc of data.services) {
+    (servicesByMachine[svc.machine] ??= []).push(svc);
+  }
+
   const grid = document.getElementById('machinesGrid');
   for (const [name, machineState] of Object.entries(data.machines)) {
     let card = grid.querySelector(`.card[data-machine="${name}"]`);
@@ -415,43 +558,7 @@ function renderStats(data) {
       card = renderMachineCard({ name, type: machineState.type }, machineState);
       grid.appendChild(card);
     }
-    updateMachineCard(card, { name, type: machineState.type }, machineState);
-  }
-
-  const sGrid = document.getElementById('servicesGrid');
-  for (const svc of data.services) {
-    const key = `${svc.machine}::${svc.name}`;
-    let el = sGrid.querySelector(`.service-card[data-key="${CSS.escape(key)}"]`);
-    if (!el) {
-      el = document.createElement('a');
-      el.className = 'service-card';
-      el.dataset.key = key;
-      el.href = svc.url;
-      el.target = '_blank';
-      el.rel = 'noopener';
-      el.innerHTML = `
-        <div class="service-icon"></div>
-        <div class="service-name">${escapeHtml(svc.name)}</div>
-        <div class="service-status"><span class="dot"></span><span class="text">—</span></div>
-      `;
-      const iconEl = el.querySelector('.service-icon');
-      const iconVal = svc.icon ?? '';
-      if (iconVal.endsWith('.svg') || iconVal.includes('/')) {
-        const img = document.createElement('img');
-        img.src = `icons/${iconVal}`;
-        img.alt = svc.name;
-        img.onerror = () => { iconEl.textContent = iconFallback(svc.name); };
-        iconEl.appendChild(img);
-      } else if (iconVal) {
-        iconEl.textContent = iconVal;
-      } else {
-        iconEl.textContent = iconFallback(svc.name);
-      }
-      sGrid.appendChild(el);
-    }
-    el.dataset.status = svc.status;
-    el.querySelector('.service-status .text').textContent =
-      svc.status === 'up' ? `up ${svc.responseTime ?? '—'}ms` : 'offline';
+    updateMachineCard(card, { name, type: machineState.type }, machineState, servicesByMachine[name] ?? []);
   }
 }
 
