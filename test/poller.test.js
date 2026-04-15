@@ -75,3 +75,33 @@ test('Poller.tick: computes network rates between consecutive ticks', async () =
   assert.ok(host.netTx > 0, `expected netTx > 0, got ${host.netTx}`);
   assert.equal(host.cpuPct.toFixed(0), '50');
 });
+
+test('Poller.tick: one scraper failing does not affect others', async () => {
+  const config = {
+    server: { pollIntervalMs: 10_000, serviceTimeoutMs: 2_000 },
+    machines: [
+      { name: 'nas',  type: 'node_exporter', host: '1', port: 9100 },
+      { name: 'bad',  type: 'node_exporter', host: '2', port: 9100 },
+    ],
+    services: [],
+  };
+  const good = {
+    memTotal: 1000, memAvailable: 400, diskTotal: 2000, diskAvailable: 800,
+    netRxBytes: 0, netTxBytes: 0, cpuIdleSeconds: 0, cpuTotalSeconds: 0,
+    bootTimeSeconds: Math.floor(Date.now()/1000) - 1, loadavg: [0,0,0],
+  };
+  const poller = new Poller(config, {
+    scrapers: {
+      node_exporter: async (entry) => {
+        if (entry.name === 'bad') throw new Error('boom');
+        return good;
+      },
+    },
+    servicePing: async () => ({ status: 'up', responseTime: 10 }),
+  });
+  await poller.tick();
+  const state = poller.getState();
+  assert.equal(state.machines.nas.status, 'up');
+  assert.equal(state.machines.bad.status, 'down');
+  assert.match(state.machines.bad.error, /boom/);
+});
