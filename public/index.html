@@ -248,6 +248,142 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   </section>
 </main>
 <footer><span class="prompt">$</span>homelab-dashboard — polling /api/stats every 5s</footer>
-<script></script>
+<script>
+const POLL_INTERVAL_MS = 5000;
+let lastStatsOk = true;
+
+function formatBytes(n) {
+  if (n == null) return '—';
+  const units = ['B','KB','MB','GB','TB'];
+  let i = 0, v = n;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(v >= 10 ? 0 : 1)} ${units[i]}`;
+}
+function formatRate(n) {
+  if (n == null) return '—';
+  return `${formatBytes(n)}/s`;
+}
+function formatPct(n) {
+  if (n == null) return '—';
+  return `${n.toFixed(0)}%`;
+}
+function formatUptime(sec) {
+  if (sec == null) return '—';
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+function levelFor(pct) {
+  if (pct == null) return 'low';
+  if (pct < 60) return 'low';
+  if (pct < 80) return 'mid';
+  if (pct < 95) return 'high';
+  return 'crit';
+}
+function pctSafe(used, total) {
+  if (!total || total === 0) return null;
+  return (used / total) * 100;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function renderMachineCard(machine, state) {
+  const card = document.createElement('article');
+  card.className = 'card';
+  card.dataset.machine = machine.name;
+  card.dataset.status = state.status;
+  card.innerHTML = `
+    <div class="card-header">
+      <span class="card-status-dot"></span>
+      <span class="card-name">${machine.name}</span>
+    </div>
+    <div class="stats"></div>
+    <div class="net-row"><span class="rx">↓ —</span><span class="tx">↑ —</span></div>
+    <div class="uptime-row">up —</div>
+    <details class="guests" ${machine.type === 'proxmox' ? 'open' : 'hidden'}>
+      <summary>guests</summary>
+      <div class="guest-list"></div>
+    </details>
+  `;
+  const stats = card.querySelector('.stats');
+  stats.innerHTML = [
+    statRow('CPU', null),
+    statRow('MEM', null),
+    statRow('DSK', null),
+  ].join('');
+  return card;
+}
+function statRow(label, pct) {
+  const level = levelFor(pct);
+  return `
+    <div class="stat-row" data-metric="${label.toLowerCase()}">
+      <span class="label">${label}</span>
+      <div class="bar"><div class="bar-fill" data-level="${level}" style="width:${pct ?? 0}%"></div></div>
+      <span class="value">${formatPct(pct)}</span>
+    </div>
+  `;
+}
+function updateMachineCard(card, machine, state) {
+  card.dataset.status = state.status;
+  const host = state.host;
+  const cpuPct = host?.cpuPct ?? null;
+  const memPct = host ? pctSafe(host.memUsed, host.memTotal) : null;
+  const dskPct = host ? pctSafe(host.diskUsed, host.diskTotal) : null;
+  setStat(card, 'cpu', cpuPct, host ? formatPct(cpuPct) : '—');
+  setStat(card, 'mem', memPct, host ? `${formatBytes(host.memUsed)} / ${formatBytes(host.memTotal)}` : '—');
+  setStat(card, 'dsk', dskPct, host ? `${formatBytes(host.diskUsed)} / ${formatBytes(host.diskTotal)}` : '—');
+  card.querySelector('.rx').textContent = `↓ ${formatRate(host?.netRx)}`;
+  card.querySelector('.tx').textContent = `↑ ${formatRate(host?.netTx)}`;
+  card.querySelector('.uptime-row').textContent = `up ${formatUptime(host?.uptime)}`;
+}
+function setStat(card, metric, pct, valueText) {
+  const row = card.querySelector(`.stat-row[data-metric="${metric}"]`);
+  const fill = row.querySelector('.bar-fill');
+  fill.style.width = pct == null ? '0%' : `${Math.min(100, pct)}%`;
+  fill.dataset.level = levelFor(pct);
+  row.querySelector('.value').textContent = valueText;
+}
+
+async function fetchStats() {
+  try {
+    const res = await fetch('/api/stats');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    lastStatsOk = true;
+    document.getElementById('errorBanner').classList.remove('visible');
+    renderStats(data);
+  } catch (err) {
+    lastStatsOk = false;
+    document.getElementById('errorBanner').classList.add('visible');
+    console.warn('[stats] fetch failed:', err.message);
+  }
+}
+
+function renderStats(data) {
+  const chip = document.getElementById('globalStatus');
+  chip.dataset.status = data.globalStatus;
+  document.getElementById('globalStatusLabel').textContent = data.globalStatus;
+  document.getElementById('lastPoll').textContent = `last poll ${new Date(data.lastPoll).toLocaleTimeString()}`;
+
+  const grid = document.getElementById('machinesGrid');
+  for (const [name, machineState] of Object.entries(data.machines)) {
+    let card = grid.querySelector(`.card[data-machine="${name}"]`);
+    if (!card) {
+      card = renderMachineCard({ name, type: machineState.type }, machineState);
+      grid.appendChild(card);
+    }
+    updateMachineCard(card, { name, type: machineState.type }, machineState);
+  }
+}
+
+document.getElementById('refreshBtn').addEventListener('click', fetchStats);
+fetchStats();
+setInterval(fetchStats, POLL_INTERVAL_MS);
+</script>
 </body>
 </html>
