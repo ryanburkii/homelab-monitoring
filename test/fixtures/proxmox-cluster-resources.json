@@ -1,0 +1,53 @@
+{
+  "data": [
+    {
+      "type": "node",
+      "node": "proxmox-dmz",
+      "status": "online",
+      "cpu": 0.143,
+      "mem": 8589934592,
+      "maxmem": 34359738368,
+      "disk": 214748364800,
+      "maxdisk": 1099511627776,
+      "netin": 1048576000,
+      "netout": 524288000,
+      "uptime": 864000
+    },
+    {
+      "type": "lxc",
+      "node": "proxmox-dmz",
+      "vmid": 101,
+      "name": "mc-server",
+      "status": "running",
+      "cpu": 0.225,
+      "mem": 2147483648,
+      "maxmem": 4294967296,
+      "disk": 10737418240,
+      "maxdisk": 21474836480,
+      "uptime": 432000
+    },
+    {
+      "type": "qemu",
+      "node": "proxmox-dmz",
+      "vmid": 201,
+      "name": "win-vm",
+      "status": "stopped",
+      "cpu": 0,
+      "mem": 0,
+      "maxmem": 8589934592,
+      "disk": 0,
+      "maxdisk": 0,
+      "uptime": 0
+    },
+    {
+      "type": "node",
+      "node": "proxmox-internal",
+      "status": "online"
+    },
+    {
+      "type": "storage",
+      "node": "proxmox-dmz",
+      "storage": "local-zfs"
+    }
+  ]
+}
