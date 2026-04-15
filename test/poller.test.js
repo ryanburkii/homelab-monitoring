@@ -125,7 +125,8 @@ test('Poller.tick: applies proxmox scrape result (pre-computed cpuPct + rate-der
     },
     guests: [
       { vmid: 101, name: 'mc-server', type: 'lxc', status: 'running',
-        cpuPct: 22.5, memUsed: 400, memTotal: 500, diskUsed: 10, diskTotal: 20, uptime: 100 },
+        cpuPct: 22.5, memUsed: 400, memTotal: 500, diskUsed: 10, diskTotal: 20, uptime: 100,
+        _cumulative: { netRxBytes: 2000, netTxBytes: 1000 } },
     ],
   };
   const pings = [];
@@ -141,8 +142,65 @@ test('Poller.tick: applies proxmox scrape result (pre-computed cpuPct + rate-der
   assert.equal(state.machines['proxmox-dmz'].host.netRx, null);
   assert.equal(state.machines['proxmox-dmz'].guests.length, 1);
   assert.equal(state.machines['proxmox-dmz'].guests[0].name, 'mc-server');
+  assert.equal(state.machines['proxmox-dmz'].guests[0].netRx, null);
+  assert.equal(state.machines['proxmox-dmz'].guests[0].netTx, null);
+  assert.equal(state.machines['proxmox-dmz'].guests[0]._cumulative, undefined);
   assert.equal(pings[0], 'Plex');
   assert.equal(state.services[0].status, 'up');
   assert.equal(state.services[0].responseTime, 42);
   assert.equal(state.globalStatus, 'up');
+});
+
+test('Poller.tick: computes per-guest network rates across consecutive ticks', async () => {
+  const config = {
+    server: { pollIntervalMs: 10_000, serviceTimeoutMs: 2_000 },
+    machines: [
+      { name: 'proxmox-dmz', type: 'proxmox', host: '1', port: 8006, tokenId: 't', tokenSecret: 's' },
+    ],
+    services: [],
+  };
+  let callCount = 0;
+  const samples = [
+    {
+      host: { cpuPct: 10, memUsed: 100, memTotal: 1000, diskUsed: 50, diskTotal: 500,
+              uptime: 100, loadavg: [0,0,0],
+              _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
+      guests: [
+        { vmid: 101, name: 'mc-server', type: 'lxc', status: 'running',
+          cpuPct: 20, memUsed: 200, memTotal: 400, diskUsed: 5, diskTotal: 20, uptime: 50,
+          _cumulative: { netRxBytes: 1000, netTxBytes: 500 } },
+        { vmid: 102, name: 'cs2-srv', type: 'lxc', status: 'running',
+          cpuPct: 30, memUsed: 250, memTotal: 400, diskUsed: 7, diskTotal: 20, uptime: 70,
+          _cumulative: { netRxBytes: 5000, netTxBytes: 2500 } },
+      ],
+    },
+    {
+      host: { cpuPct: 10, memUsed: 100, memTotal: 1000, diskUsed: 50, diskTotal: 500,
+              uptime: 100, loadavg: [0,0,0],
+              _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
+      guests: [
+        { vmid: 101, name: 'mc-server', type: 'lxc', status: 'running',
+          cpuPct: 22, memUsed: 200, memTotal: 400, diskUsed: 5, diskTotal: 20, uptime: 50,
+          _cumulative: { netRxBytes: 11000, netTxBytes: 5500 } },
+        { vmid: 102, name: 'cs2-srv', type: 'lxc', status: 'running',
+          cpuPct: 32, memUsed: 250, memTotal: 400, diskUsed: 7, diskTotal: 20, uptime: 70,
+          _cumulative: { netRxBytes: 25000, netTxBytes: 12500 } },
+      ],
+    },
+  ];
+  const poller = new Poller(config, {
+    scrapers: { proxmox: async () => samples[callCount++] },
+    servicePing: async () => ({ status: 'up', responseTime: 10 }),
+  });
+  await poller.tick();
+  await new Promise((r) => setTimeout(r, 100));
+  await poller.tick();
+  const guests = poller.getState().machines['proxmox-dmz'].guests;
+  const mc = guests.find((g) => g.vmid === 101);
+  const cs2 = guests.find((g) => g.vmid === 102);
+  assert.ok(mc.netRx > 0, `mc netRx should be > 0, got ${mc.netRx}`);
+  assert.ok(mc.netTx > 0, `mc netTx should be > 0, got ${mc.netTx}`);
+  assert.ok(cs2.netRx > mc.netRx, `cs2 netRx (${cs2.netRx}) should exceed mc netRx (${mc.netRx}) — bigger delta`);
+  assert.equal(mc._cumulative, undefined);
+  assert.equal(cs2._cumulative, undefined);
 });
