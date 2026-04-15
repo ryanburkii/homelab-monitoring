@@ -1,0 +1,26 @@
+[Unit]
+Description=Homelab Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dashboard
+Group=dashboard
+WorkingDirectory=/opt/homelab-monitoring
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=NODE_ENV=production
+
+# Hardening (safe defaults for a read-only dashboard)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/homelab-monitoring/logs
+
+[Install]
+WantedBy=multi-user.target
