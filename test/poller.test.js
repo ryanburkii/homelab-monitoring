@@ -105,3 +105,44 @@ test('Poller.tick: one scraper failing does not affect others', async () => {
   assert.equal(state.machines.bad.status, 'down');
   assert.match(state.machines.bad.error, /boom/);
 });
+
+test('Poller.tick: applies proxmox scrape result (pre-computed cpuPct + rate-derived net)', async () => {
+  const config = {
+    server: { pollIntervalMs: 10_000, serviceTimeoutMs: 2_000 },
+    machines: [
+      { name: 'proxmox-dmz', type: 'proxmox', host: '1', port: 8006, tokenId: 't', tokenSecret: 's' },
+    ],
+    services: [
+      { name: 'Plex', machine: 'proxmox-dmz', url: 'http://example/', icon: 'plex.svg' },
+    ],
+  };
+  const bootTime = Math.floor(Date.now() / 1000) - 3600;
+  const scraped = {
+    host: {
+      cpuPct: 14.3, memUsed: 800, memTotal: 1000, diskUsed: 100, diskTotal: 200,
+      uptime: 3600, loadavg: [0.1, 0.2, 0.3],
+      _cumulative: { netRxBytes: 10000, netTxBytes: 5000 },
+    },
+    guests: [
+      { vmid: 101, name: 'mc-server', type: 'lxc', status: 'running',
+        cpuPct: 22.5, memUsed: 400, memTotal: 500, diskUsed: 10, diskTotal: 20, uptime: 100 },
+    ],
+  };
+  const pings = [];
+  const poller = new Poller(config, {
+    scrapers: { proxmox: async () => scraped },
+    servicePing: async (svc) => { pings.push(svc.name); return { status: 'up', responseTime: 42 }; },
+  });
+  await poller.tick();
+  const state = poller.getState();
+  assert.equal(state.machines['proxmox-dmz'].status, 'up');
+  assert.equal(state.machines['proxmox-dmz'].host.cpuPct, 14.3);
+  assert.equal(state.machines['proxmox-dmz'].host.memUsed, 800);
+  assert.equal(state.machines['proxmox-dmz'].host.netRx, null);
+  assert.equal(state.machines['proxmox-dmz'].guests.length, 1);
+  assert.equal(state.machines['proxmox-dmz'].guests[0].name, 'mc-server');
+  assert.equal(pings[0], 'Plex');
+  assert.equal(state.services[0].status, 'up');
+  assert.equal(state.services[0].responseTime, 42);
+  assert.equal(state.globalStatus, 'up');
+});
