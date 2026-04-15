@@ -1,14 +1,11 @@
 # Homelab Dashboard
 
-Local-network dashboard for monitoring Proxmox hosts + a TrueNAS node_exporter, with service quick-launch links.
+Local-network dashboard for monitoring Proxmox hosts with auto-discovered LXCs/VMs, historical graphs, and ntfy alerting.
 
 ## Prerequisites
 
 - Node.js 20+ (Ubuntu 24: `apt install nodejs npm`)
-- Network reachability from this host to every target machine on:
-  - Proxmox API port 8006 (HTTPS)
-  - node_exporter port 9100 (HTTP)
-  - Service URLs you want to ping
+- Network reachability from this host to every Proxmox node on API port 8006 (HTTPS)
 
 ## Install
 
@@ -29,19 +26,6 @@ For each Proxmox host you want to monitor:
 5. **Datacenter → Permissions → Add → User Permission** — path `/`, user `dashboard@pve`, role `PVEAuditor`, propagate checked.
 
 The token's full ID is `dashboard@pve!readonly` and goes in `config.js` as `tokenId`, paired with the secret in `tokenSecret`.
-
-## Install node_exporter on TrueNAS
-
-TrueNAS SCALE (systemd-based):
-
-```bash
-wget https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz
-tar xzf node_exporter-*.tar.gz
-sudo mv node_exporter-*/node_exporter /usr/local/bin/
-# Create a systemd unit or an init script per your preference.
-```
-
-Verify: `curl http://<nas-ip>:9100/metrics` should return Prometheus text.
 
 ## Configure
 
@@ -64,7 +48,7 @@ node server.js
 
 Open `http://<this-host>:3000/` in a browser.
 
-Test: `npm test` runs the unit tests for the Prometheus and Proxmox parsers and the poller.
+Test: `npm test` runs the unit tests for the Proxmox parser, poller, storage, and alerts.
 
 ## systemd service
 
@@ -120,7 +104,6 @@ alerts: {
     reachability: true,
   },
   overrides: [
-    { machine: "nas", diskPct: 98 },
     { machine: "proxmox-internal", guest: "plex-lxc", cpuPct: 95 },
   ],
 },

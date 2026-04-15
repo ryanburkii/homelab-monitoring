@@ -28,13 +28,6 @@ module.exports = {
       rejectUnauthorized: false,
       primaryUrl: "https://REPLACE_ME:8006",
     },
-    {
-      name: "nas",
-      type: "node_exporter",
-      host: "REPLACE_ME",
-      port: 9100,
-      primaryUrl: "http://REPLACE_ME", // TrueNAS web UI
-    },
   ],
 
   // Overlay clickable metadata onto auto-discovered guests. Each entry attaches a URL,
@@ -64,7 +57,6 @@ module.exports = {
       reachability: true,
     },
     overrides: [
-      // { machine: "nas",              diskPct: 98 },
       // { machine: "proxmox-internal", guest: "plex-lxc", cpuPct: 95 },
     ],
   },
