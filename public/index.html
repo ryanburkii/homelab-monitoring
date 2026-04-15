@@ -340,6 +340,33 @@ function updateMachineCard(card, machine, state) {
   card.querySelector('.rx').textContent = `↓ ${formatRate(host?.netRx)}`;
   card.querySelector('.tx').textContent = `↑ ${formatRate(host?.netTx)}`;
   card.querySelector('.uptime-row').textContent = `up ${formatUptime(host?.uptime)}`;
+  const guestList = card.querySelector('.guest-list');
+  const details = card.querySelector('details.guests');
+  if (state.guests && state.guests.length > 0) {
+    details.hidden = false;
+    details.querySelector('summary').textContent = `guests [${state.guests.length}]`;
+    guestList.innerHTML = state.guests
+      .sort((a, b) => (b.status === 'running') - (a.status === 'running') || a.name.localeCompare(b.name))
+      .map((g) => {
+        const cpu = g.cpuPct == null ? '—' : `${g.cpuPct.toFixed(0)}%`;
+        const mem = pctSafe(g.memUsed, g.memTotal);
+        const memPct = mem == null ? '—' : `${mem.toFixed(0)}%`;
+        return `
+          <div class="guest-row" data-status="${g.status}">
+            <span class="guest-dot"></span>
+            <span class="guest-name">${escapeHtml(g.name)}</span>
+            <span class="guest-metric">cpu ${cpu}</span>
+            <span class="guest-metric">mem ${memPct}</span>
+          </div>
+        `;
+      }).join('');
+  } else if (machine.type === 'proxmox') {
+    details.hidden = false;
+    details.querySelector('summary').textContent = 'guests [0]';
+    guestList.innerHTML = '';
+  } else {
+    details.hidden = true;
+  }
 }
 function setStat(card, metric, pct, valueText) {
   const row = card.querySelector(`.stat-row[data-metric="${metric}"]`);
