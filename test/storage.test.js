@@ -90,6 +90,88 @@ test('Storage.rollup: downsamples 1m to 10m for data older than 7d, and prunes 1
   s.close();
 });
 
+test('Storage: insert and list alert events', () => {
+  const s = mkStorage();
+  s.insertAlertEvent({ ts: 1000, machine: 'm1', guest: null,  metric: 'cpu', kind: 'firing',   value: 95, threshold: 90, message: 'cpu hot' });
+  s.insertAlertEvent({ ts: 2000, machine: 'm1', guest: 'g1',  metric: 'mem', kind: 'firing',   value: 92, threshold: 90, message: 'mem hot' });
+  s.insertAlertEvent({ ts: 3000, machine: 'm1', guest: null,  metric: 'cpu', kind: 'resolved', value: 40, threshold: 90, message: 'cpu ok' });
+
+  // all events, newest first
+  const all = s.listAlertEvents({ limit: 10 });
+  assert.equal(all.length, 3);
+  assert.equal(all[0].ts, 3000, 'newest first');
+  assert.equal(all[2].ts, 1000);
+
+  // machine+guest filter: exactly the g1 mem event
+  const filtered = s.listAlertEvents({ limit: 10, machine: 'm1', guest: 'g1' });
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].metric, 'mem');
+
+  // machine-only filter: host-level events only (guest IS NULL) — must NOT include g1
+  const hostOnly = s.listAlertEvents({ limit: 10, machine: 'm1' });
+  assert.equal(hostOnly.length, 2, 'machine-only should return only host-level (guest IS NULL) rows');
+  assert.ok(hostOnly.every(r => r.guest === null), 'all rows must have guest === null');
+  assert.ok(hostOnly.every(r => r.metric === 'cpu'), 'both host events are cpu');
+
+  // cross-machine isolation: m2 events must not appear in m1 results
+  s.insertAlertEvent({ ts: 4000, machine: 'm2', guest: null, metric: 'cpu', kind: 'firing', value: 80, threshold: 75, message: 'm2 cpu' });
+  const m1After = s.listAlertEvents({ limit: 10, machine: 'm1' });
+  assert.equal(m1After.length, 2, 'm2 event must not bleed into m1 machine-only results');
+  assert.ok(m1After.every(r => r.machine === 'm1'), 'all rows must belong to m1');
+
+  s.close();
+});
+
+test('Storage.listActiveFiring: returns keys whose latest event is firing', () => {
+  const s = mkStorage();
+  // key A: firing then resolved → should NOT appear
+  s.insertAlertEvent({ ts: 100, machine: 'a', guest: null, metric: 'cpu', kind: 'firing',   value: 95, threshold: 90, message: '' });
+  s.insertAlertEvent({ ts: 200, machine: 'a', guest: null, metric: 'cpu', kind: 'resolved', value: 40, threshold: 90, message: '' });
+  // key B: firing only → should appear
+  s.insertAlertEvent({ ts: 150, machine: 'b', guest: 'g', metric: 'mem',  kind: 'firing',   value: 95, threshold: 90, message: '' });
+  // key C: firing, resolved, firing → should appear (latest is firing)
+  s.insertAlertEvent({ ts: 300, machine: 'c', guest: null, metric: 'disk', kind: 'firing',   value: 95, threshold: 90, message: '' });
+  s.insertAlertEvent({ ts: 400, machine: 'c', guest: null, metric: 'disk', kind: 'resolved', value: 40, threshold: 90, message: '' });
+  s.insertAlertEvent({ ts: 500, machine: 'c', guest: null, metric: 'disk', kind: 'firing',   value: 95, threshold: 90, message: '' });
+
+  const active = s.listActiveFiring();
+  const keys = active.map((a) => `${a.machine}/${a.guest ?? '_host'}/${a.metric}`).sort();
+  assert.deepEqual(keys, ['b/g/mem', 'c/_host/disk']);
+  const bRow = active.find((a) => a.machine === 'b');
+  assert.equal(bRow.ts, 150);
+  assert.equal(bRow.value, 95);
+  s.close();
+});
+
+test('Storage.pruneAlertEvents: keeps last 1000 or last 90d, whichever is larger', () => {
+  const s = mkStorage();
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  // 5 ancient events (> 90d old, beyond the 1000 cap)
+  for (let i = 0; i < 5; i++) {
+    s.insertAlertEvent({ ts: now - 200 * day + i, machine: 'old', guest: null, metric: 'cpu', kind: 'firing', value: 95, threshold: 90, message: '' });
+  }
+  // 3 recent events
+  for (let i = 0; i < 3; i++) {
+    s.insertAlertEvent({ ts: now - i * 1000, machine: 'new', guest: null, metric: 'cpu', kind: 'firing', value: 95, threshold: 90, message: '' });
+  }
+  // Total rows = 8, well under 1000, so 1000-cap says keep all. But the 5 old ones are > 90d AND we have fewer than 1000 rows. Rule: keep last 1000 OR last 90d, whichever set is larger. 1000-cap keeps all 8; 90d-cap keeps only 3. Union = all 8. Nothing pruned.
+  s.pruneAlertEvents(now);
+  assert.equal(s.listAlertEvents({ limit: 1000 }).length, 8);
+
+  // Now force the row count above 1000 by inserting many recent rows.
+  for (let i = 0; i < 1200; i++) {
+    s.insertAlertEvent({ ts: now - 10 * day - i, machine: 'bulk', guest: null, metric: 'cpu', kind: 'firing', value: 95, threshold: 90, message: '' });
+  }
+  s.pruneAlertEvents(now);
+  // Rule: keep union of (last 1000 rows) and (last 90d). The 5 ancient rows are > 90d AND fall outside the 1000 newest → pruned.
+  const remaining = s.listAlertEvents({ limit: 500 });
+  assert.equal(remaining.length, 500, 'cap-limited query returns 500 rows, indicating plenty retained');
+  assert.ok(remaining.every((r) => r.machine !== 'old'), 'ancient rows should be pruned from recent results');
+  assert.equal(s.listAlertEvents({ limit: 500, machine: 'old' }).length, 0, 'no old-machine rows remain after prune');
+  s.close();
+});
+
 test('Storage.query: auto-picks tier based on range span', () => {
   const s = mkStorage();
   const now = Date.now();
