@@ -3,21 +3,20 @@ const assert = require('node:assert/strict');
 const { Poller } = require('../lib/poller.js');
 
 const baseConfig = {
-  server: { pollIntervalMs: 10_000, serviceTimeoutMs: 2_000 },
+  server: { pollIntervalMs: 10_000 },
   machines: [
     { name: 'nas', type: 'node_exporter', host: '127.0.0.1', port: 9100 },
   ],
-  services: [],
 };
 
 test('Poller: getState returns skeleton before first tick', () => {
-  const poller = new Poller(baseConfig, { scrapers: {}, servicePing: async () => {} });
+  const poller = new Poller(baseConfig, { scrapers: {} });
   const state = poller.getState();
   assert.equal(state.lastPoll, null);
   assert.equal(state.globalStatus, 'down');
   assert.equal(state.machines.nas.status, 'down');
   assert.equal(state.machines.nas.host, null);
-  assert.deepEqual(state.services, []);
+  assert.equal(state.services, undefined);
 });
 
 test('Poller.tick: dispatches by type and populates state', async () => {
@@ -30,10 +29,7 @@ test('Poller.tick: dispatches by type and populates state', async () => {
     loadavg: [0.1, 0.2, 0.3],
   };
   const poller = new Poller(baseConfig, {
-    scrapers: {
-      node_exporter: async () => mockNodeExporterResult,
-    },
-    servicePing: async () => ({ status: 'up', responseTime: 10 }),
+    scrapers: { node_exporter: async () => mockNodeExporterResult },
   });
   await poller.tick();
   const state = poller.getState();
@@ -65,7 +61,6 @@ test('Poller.tick: computes network rates between consecutive ticks', async () =
   ];
   const poller = new Poller(baseConfig, {
     scrapers: { node_exporter: async () => samples[callCount++] },
-    servicePing: async () => ({ status: 'up', responseTime: 10 }),
   });
   await poller.tick();
   await new Promise((r) => setTimeout(r, 100));
@@ -78,12 +73,11 @@ test('Poller.tick: computes network rates between consecutive ticks', async () =
 
 test('Poller.tick: one scraper failing does not affect others', async () => {
   const config = {
-    server: { pollIntervalMs: 10_000, serviceTimeoutMs: 2_000 },
+    server: { pollIntervalMs: 10_000 },
     machines: [
       { name: 'nas',  type: 'node_exporter', host: '1', port: 9100 },
       { name: 'bad',  type: 'node_exporter', host: '2', port: 9100 },
     ],
-    services: [],
   };
   const good = {
     memTotal: 1000, memAvailable: 400, diskTotal: 2000, diskAvailable: 800,
@@ -97,7 +91,6 @@ test('Poller.tick: one scraper failing does not affect others', async () => {
         return good;
       },
     },
-    servicePing: async () => ({ status: 'up', responseTime: 10 }),
   });
   await poller.tick();
   const state = poller.getState();
@@ -108,12 +101,9 @@ test('Poller.tick: one scraper failing does not affect others', async () => {
 
 test('Poller.tick: applies proxmox scrape result (pre-computed cpuPct + rate-derived net)', async () => {
   const config = {
-    server: { pollIntervalMs: 10_000, serviceTimeoutMs: 2_000 },
+    server: { pollIntervalMs: 10_000 },
     machines: [
       { name: 'proxmox-dmz', type: 'proxmox', host: '1', port: 8006, tokenId: 't', tokenSecret: 's' },
-    ],
-    services: [
-      { name: 'Plex', machine: 'proxmox-dmz', url: 'http://example/', icon: 'plex.svg' },
     ],
   };
   const bootTime = Math.floor(Date.now() / 1000) - 3600;
@@ -129,10 +119,8 @@ test('Poller.tick: applies proxmox scrape result (pre-computed cpuPct + rate-der
         _cumulative: { netRxBytes: 2000, netTxBytes: 1000 } },
     ],
   };
-  const pings = [];
   const poller = new Poller(config, {
     scrapers: { proxmox: async () => scraped },
-    servicePing: async (svc) => { pings.push(svc.name); return { status: 'up', responseTime: 42 }; },
   });
   await poller.tick();
   const state = poller.getState();
@@ -145,19 +133,15 @@ test('Poller.tick: applies proxmox scrape result (pre-computed cpuPct + rate-der
   assert.equal(state.machines['proxmox-dmz'].guests[0].netRx, null);
   assert.equal(state.machines['proxmox-dmz'].guests[0].netTx, null);
   assert.equal(state.machines['proxmox-dmz'].guests[0]._cumulative, undefined);
-  assert.equal(pings[0], 'Plex');
-  assert.equal(state.services[0].status, 'up');
-  assert.equal(state.services[0].responseTime, 42);
   assert.equal(state.globalStatus, 'up');
 });
 
 test('Poller.tick: computes per-guest network rates across consecutive ticks', async () => {
   const config = {
-    server: { pollIntervalMs: 10_000, serviceTimeoutMs: 2_000 },
+    server: { pollIntervalMs: 10_000 },
     machines: [
       { name: 'proxmox-dmz', type: 'proxmox', host: '1', port: 8006, tokenId: 't', tokenSecret: 's' },
     ],
-    services: [],
   };
   let callCount = 0;
   const samples = [
@@ -190,7 +174,6 @@ test('Poller.tick: computes per-guest network rates across consecutive ticks', a
   ];
   const poller = new Poller(config, {
     scrapers: { proxmox: async () => samples[callCount++] },
-    servicePing: async () => ({ status: 'up', responseTime: 10 }),
   });
   await poller.tick();
   await new Promise((r) => setTimeout(r, 100));
@@ -200,7 +183,45 @@ test('Poller.tick: computes per-guest network rates across consecutive ticks', a
   const cs2 = guests.find((g) => g.vmid === 102);
   assert.ok(mc.netRx > 0, `mc netRx should be > 0, got ${mc.netRx}`);
   assert.ok(mc.netTx > 0, `mc netTx should be > 0, got ${mc.netTx}`);
-  assert.ok(cs2.netRx > mc.netRx, `cs2 netRx (${cs2.netRx}) should exceed mc netRx (${mc.netRx}) — bigger delta`);
+  assert.ok(cs2.netRx > mc.netRx);
   assert.equal(mc._cumulative, undefined);
   assert.equal(cs2._cumulative, undefined);
+});
+
+test('Poller: overlays guestLinks url/icon onto matching auto-discovered guests', async () => {
+  const config = {
+    server: { pollIntervalMs: 10_000 },
+    machines: [
+      { name: 'proxmox-dmz', type: 'proxmox' },
+    ],
+    guestLinks: [
+      { machine: 'proxmox-dmz', guest: 'mc-server', url: 'http://mc.example/', icon: 'mc.svg' },
+    ],
+  };
+  const scraped = {
+    host: {
+      cpuPct: 10, memUsed: 100, memTotal: 1000, diskUsed: 10, diskTotal: 100,
+      uptime: 100, loadavg: [0,0,0],
+      _cumulative: { netRxBytes: 0, netTxBytes: 0 },
+    },
+    guests: [
+      { vmid: 101, name: 'mc-server', type: 'lxc', status: 'running',
+        cpuPct: 20, memUsed: 200, memTotal: 400, diskUsed: 5, diskTotal: 20, uptime: 50,
+        _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
+      { vmid: 102, name: 'other-lxc', type: 'lxc', status: 'running',
+        cpuPct: 5, memUsed: 100, memTotal: 200, diskUsed: 1, diskTotal: 10, uptime: 10,
+        _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
+    ],
+  };
+  const poller = new Poller(config, {
+    scrapers: { proxmox: async () => scraped },
+  });
+  await poller.tick();
+  const guests = poller.getState().machines['proxmox-dmz'].guests;
+  const mc = guests.find((g) => g.name === 'mc-server');
+  const other = guests.find((g) => g.name === 'other-lxc');
+  assert.equal(mc.url, 'http://mc.example/');
+  assert.equal(mc.icon, 'mc.svg');
+  assert.equal(other.url, null);
+  assert.equal(other.icon, null);
 });

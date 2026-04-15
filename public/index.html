@@ -198,54 +198,36 @@ details.guests[open] > summary::before { content: "▾ "; }
   .card-name-link:hover::after { opacity: 0.9; transform: translate(2px, -2px); }
 }
 
-.header-launchers {
-  margin-left: auto;
-  display: flex;
-  gap: 0.3rem;
-}
-.header-launcher {
-  width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 4px;
-  background: var(--bg-alt);
-  border: 1px solid var(--current-line);
+a.guest-row {
   text-decoration: none;
-  color: var(--purple);
-  font-size: 0.6rem;
-  font-weight: 700;
-  font-family: "JetBrains Mono", monospace;
-  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+  color: inherit;
+  cursor: pointer;
+  transition: border-left-color 140ms var(--ease-out), transform 160ms var(--ease-out), background 140ms var(--ease-out);
 }
-.header-launcher img { width: 18px; height: 18px; object-fit: contain; }
-.header-launcher:active { transform: scale(0.95); }
-.header-launcher[data-status="down"] { border-color: var(--red); opacity: 0.65; }
+a.guest-row:active { transform: scale(0.99); }
 @media (hover: hover) and (pointer: fine) {
-  .header-launcher:hover { border-color: var(--purple); background: var(--current-line); }
+  a.guest-row:hover { background: var(--current-line); border-left-color: var(--purple); }
+  a.guest-row:hover .guest-row-head .guest-name { color: var(--purple); }
 }
-
-.guest-launchers {
-  display: flex;
-  gap: 0.3rem;
-  margin-left: 0.25rem;
-}
-.guest-launcher {
-  width: 22px; height: 22px;
+.guest-row-icon {
+  width: 18px; height: 18px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 3px;
-  background: var(--bg);
-  border: 1px solid var(--current-line);
-  text-decoration: none;
   color: var(--purple);
-  font-size: 0.56rem;
-  font-weight: 700;
-  font-family: "JetBrains Mono", monospace;
-  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+  filter: drop-shadow(0 0 4px var(--purple));
+  font-size: 0.58rem; font-weight: 700;
 }
-.guest-launcher img { width: 14px; height: 14px; object-fit: contain; }
-.guest-launcher:active { transform: scale(0.95); }
-.guest-launcher[data-status="down"] { border-color: var(--red); opacity: 0.65; }
+.guest-row-icon img { width: 18px; height: 18px; object-fit: contain; }
+.guest-row-head .guest-name {
+  transition: color 140ms var(--ease-out);
+}
+.guest-row-head .guest-link-arrow {
+  color: var(--comment);
+  font-size: 0.75em;
+  opacity: 0.4;
+  transition: opacity 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
 @media (hover: hover) and (pointer: fine) {
-  .guest-launcher:hover { border-color: var(--purple); background: var(--surface); }
+  a.guest-row:hover .guest-link-arrow { opacity: 0.9; color: var(--purple); transform: translate(2px, -2px); }
 }
 
 .guest-list { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -412,7 +394,6 @@ function renderMachineCard(machine, state) {
     <div class="card-header">
       <span class="card-status-dot"></span>
       ${nameHtml}
-      <div class="header-launchers"></div>
     </div>
     <div class="stats"></div>
     <div class="net-row"><span class="rx">↓ —</span><span class="tx">↑ —</span></div>
@@ -440,7 +421,7 @@ function statRow(label, pct) {
     </div>
   `;
 }
-function updateMachineCard(card, machine, state, services) {
+function updateMachineCard(card, machine, state) {
   card.dataset.status = state.status;
   const errorHolder = card.querySelector('.card-error') ?? (() => {
     const el = document.createElement('div');
@@ -461,58 +442,10 @@ function updateMachineCard(card, machine, state, services) {
   card.querySelector('.tx').textContent = `↑ ${formatRate(host?.netTx)}`;
   card.querySelector('.uptime-row').textContent = `up ${formatUptime(host?.uptime)}`;
 
-  const { byGuest, orphans } = splitServices(services);
-  updateHeaderLaunchers(card, orphans);
-  updateGuestList(card, state, machine, byGuest);
+  updateGuestList(card, state, machine);
 }
 
-function splitServices(services) {
-  const byGuest = {};
-  const orphans = [];
-  for (const svc of services ?? []) {
-    if (svc.guest) {
-      (byGuest[svc.guest] ??= []).push(svc);
-    } else {
-      orphans.push(svc);
-    }
-  }
-  return { byGuest, orphans };
-}
-
-function updateHeaderLaunchers(card, orphans) {
-  const container = card.querySelector('.header-launchers');
-  container.innerHTML = '';
-  for (const svc of orphans) {
-    container.appendChild(buildLauncher(svc, 'header-launcher'));
-  }
-}
-
-function buildLauncher(svc, cls) {
-  const el = document.createElement('a');
-  el.className = cls;
-  el.href = svc.url;
-  el.target = '_blank';
-  el.rel = 'noopener';
-  el.dataset.status = svc.status;
-  el.title = svc.status === 'up'
-    ? `${svc.name} — up ${svc.responseTime ?? '—'}ms`
-    : `${svc.name} — offline`;
-  const iconVal = svc.icon ?? '';
-  if (iconVal.endsWith('.svg') || iconVal.includes('/')) {
-    const img = document.createElement('img');
-    img.src = `icons/${iconVal}`;
-    img.alt = svc.name;
-    img.onerror = () => { el.textContent = iconFallback(svc.name); };
-    el.appendChild(img);
-  } else if (iconVal) {
-    el.textContent = iconVal;
-  } else {
-    el.textContent = iconFallback(svc.name);
-  }
-  return el;
-}
-
-function updateGuestList(card, state, machine, servicesByGuest) {
+function updateGuestList(card, state, machine) {
   const list = card.querySelector('.guest-list');
   const details = card.querySelector('details.guests');
   if (state.guests && state.guests.length > 0) {
@@ -523,8 +456,7 @@ function updateGuestList(card, state, machine, servicesByGuest) {
       .slice()
       .sort((a, b) => (b.status === 'running') - (a.status === 'running') || a.name.localeCompare(b.name));
     for (const g of sorted) {
-      const row = buildGuestRow(g, servicesByGuest[g.name] ?? []);
-      list.appendChild(row);
+      list.appendChild(buildGuestRow(g));
     }
   } else if (machine.type === 'proxmox') {
     details.hidden = false;
@@ -535,10 +467,16 @@ function updateGuestList(card, state, machine, servicesByGuest) {
   }
 }
 
-function buildGuestRow(g, services) {
-  const row = document.createElement('div');
+function buildGuestRow(g) {
+  const hasLink = !!g.url;
+  const row = document.createElement(hasLink ? 'a' : 'div');
   row.className = 'guest-row';
   row.dataset.status = g.status;
+  if (hasLink) {
+    row.href = g.url;
+    row.target = '_blank';
+    row.rel = 'noopener';
+  }
   const memPct = pctSafe(g.memUsed, g.memTotal);
   const cpuLevel = levelFor(g.cpuPct);
   const memLevel = levelFor(memPct);
@@ -550,14 +488,16 @@ function buildGuestRow(g, services) {
     ? `<div class="guest-net"><span>↓ ${formatRate(g.netRx)}</span><span>↑ ${formatRate(g.netTx)}</span></div>`
     : '';
   const uptime = g.status === 'running' ? formatUptime(g.uptime) : 'stopped';
+  const linkArrow = hasLink ? `<span class="guest-link-arrow">↗</span>` : '';
   row.innerHTML = `
     <div class="guest-row-head">
       <span class="guest-dot"></span>
+      <div class="guest-row-icon"></div>
       <span class="guest-name">${escapeHtml(g.name)}</span>
       <span class="guest-type">${g.type}</span>
       <span class="guest-vmid">${g.vmid}</span>
       <span class="guest-uptime">${uptime}</span>
-      <div class="guest-launchers"></div>
+      ${linkArrow}
     </div>
     <div class="guest-stats">
       <div class="mini-stat">
@@ -573,9 +513,20 @@ function buildGuestRow(g, services) {
     </div>
     ${net}
   `;
-  const launchers = row.querySelector('.guest-launchers');
-  for (const svc of services) {
-    launchers.appendChild(buildLauncher(svc, 'guest-launcher'));
+  const iconEl = row.querySelector('.guest-row-icon');
+  if (g.icon) {
+    const iconVal = g.icon;
+    if (iconVal.endsWith('.svg') || iconVal.includes('/')) {
+      const img = document.createElement('img');
+      img.src = `icons/${iconVal}`;
+      img.alt = g.name;
+      img.onerror = () => { iconEl.textContent = iconFallback(g.name); };
+      iconEl.appendChild(img);
+    } else {
+      iconEl.textContent = iconVal;
+    }
+  } else {
+    iconEl.remove();
   }
   return row;
 }
@@ -608,11 +559,6 @@ function renderStats(data) {
   document.getElementById('globalStatusLabel').textContent = data.globalStatus;
   document.getElementById('lastPoll').textContent = `last poll ${new Date(data.lastPoll).toLocaleTimeString()}`;
 
-  const servicesByMachine = {};
-  for (const svc of data.services) {
-    (servicesByMachine[svc.machine] ??= []).push(svc);
-  }
-
   const grid = document.getElementById('machinesGrid');
   for (const [name, machineState] of Object.entries(data.machines)) {
     let card = grid.querySelector(`.card[data-machine="${name}"]`);
@@ -620,7 +566,7 @@ function renderStats(data) {
       card = renderMachineCard({ name, type: machineState.type }, machineState);
       grid.appendChild(card);
     }
-    updateMachineCard(card, { name, type: machineState.type }, machineState, servicesByMachine[name] ?? []);
+    updateMachineCard(card, { name, type: machineState.type }, machineState);
   }
 }
 

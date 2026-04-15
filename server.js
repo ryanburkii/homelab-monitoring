@@ -21,28 +21,13 @@ function validateConfig(cfg) {
     if (m.type === 'node_exporter' && !m.port) errors.push(`machines[${i}].port required for node_exporter`);
     machineNames.add(m.name);
   }
-  for (const [i, s] of (cfg.services ?? []).entries()) {
-    if (!s.name) errors.push(`services[${i}].name is required`);
-    if (!s.url) errors.push(`services[${i}].url is required`);
-    if (!machineNames.has(s.machine)) errors.push(`services[${i}].machine '${s.machine}' not in machines`);
+  for (const [i, l] of (cfg.guestLinks ?? []).entries()) {
+    if (!l.machine || !machineNames.has(l.machine)) errors.push(`guestLinks[${i}].machine '${l.machine}' not in machines`);
+    if (!l.guest) errors.push(`guestLinks[${i}].guest is required`);
+    if (!l.url) errors.push(`guestLinks[${i}].url is required`);
   }
   if (errors.length) {
     throw new Error('config.js validation failed:\n  - ' + errors.join('\n  - '));
-  }
-}
-
-async function servicePing(svc, timeoutMs) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const start = Date.now();
-  try {
-    const res = await globalThis.fetch(svc.url, { signal: controller.signal, redirect: 'follow' });
-    const responseTime = Date.now() - start;
-    return { status: res.ok || (res.status >= 300 && res.status < 400) ? 'up' : 'down', responseTime };
-  } catch {
-    return { status: 'down', responseTime: null };
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -61,13 +46,11 @@ function main() {
       proxmox: (entry) => proxmox.fetch({ ...entry, proxmoxTimeoutMs: config.server.proxmoxTimeoutMs }),
       node_exporter: (entry) => nodeExporter.fetch({ ...entry, nodeExporterTimeoutMs: config.server.nodeExporterTimeoutMs }),
     },
-    servicePing: (svc) => servicePing(svc, config.server.serviceTimeoutMs),
   });
   poller.start();
 
   const app = express();
   app.get('/api/stats', (_req, res) => res.json(poller.getState()));
-  app.get('/api/ping', (_req, res) => res.json({ services: poller.getState().services }));
   app.use(express.static(path.join(__dirname, 'public')));
 
   app.listen(config.server.port, () => {

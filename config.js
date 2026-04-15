@@ -37,13 +37,12 @@ module.exports = {
     },
   ],
 
-  // Each service shows on its host machine card.
-  // Optional `guest`: set to the LXC/VM name to render as a launcher on that guest's row.
-  //                   omit to render as a compact chip in the machine card header.
-  services: [
-    { name: "Mealie",      machine: "proxmox-dmz",      url: "http://REPLACE_ME:9000",      icon: "mealie-light.svg" /*, guest: "mealie-lxc" */ },
-    { name: "Plex",        machine: "proxmox-internal", url: "http://REPLACE_ME:32400/web", icon: "plex-light.svg"   /*, guest: "plex-lxc"   */ },
-    { name: "netboot.xyz", machine: "proxmox-internal", url: "http://REPLACE_ME:8080",      icon: "netboot.svg" },
-    { name: "Dashboard",   machine: "proxmox-internal", url: "http://REPLACE_ME:3000",      icon: "dashboard.svg"    /*, guest: "dashboard"  */ },
+  // Overlay clickable metadata onto auto-discovered guests. Each entry attaches a URL,
+  // icon, and display label to a guest by (machine, guest name). Matched guests become
+  // clickable rows in the UI that open the URL in a new tab.
+  guestLinks: [
+    // { machine: "proxmox-dmz",      guest: "mealie-lxc", url: "http://REPLACE_ME:9000",      icon: "mealie-light.svg" },
+    // { machine: "proxmox-internal", guest: "plex-lxc",   url: "http://REPLACE_ME:32400/web", icon: "plex-light.svg"   },
+    // { machine: "proxmox-internal", guest: "dashboard",  url: "http://REPLACE_ME:3000",      icon: "dashboard.svg"    },
   ],
 };

@@ -11,11 +11,10 @@ const devConfig = {
     { name: 'proxmox-internal', type: 'proxmox',       primaryUrl: 'https://demo-proxmox-internal.invalid:8006' },
     { name: 'nas',              type: 'node_exporter', primaryUrl: 'http://demo-nas.invalid' },
   ],
-  services: [
-    { name: 'Mealie',      machine: 'proxmox-dmz',      url: 'http://127.0.0.1:1', icon: 'mealie-light.svg', guest: 'mealie-lxc' },
-    { name: 'Plex',        machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'plex-light.svg',   guest: 'plex-lxc'   },
-    { name: 'netboot.xyz', machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'netboot.svg'   },
-    { name: 'Dashboard',   machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'dashboard.svg',    guest: 'dashboard'  },
+  guestLinks: [
+    { machine: 'proxmox-dmz',      guest: 'mealie-lxc', url: 'http://127.0.0.1:1/mealie',    icon: 'mealie-light.svg' },
+    { machine: 'proxmox-internal', guest: 'plex-lxc',   url: 'http://127.0.0.1:1/plex',      icon: 'plex-light.svg'   },
+    { machine: 'proxmox-internal', guest: 'dashboard',  url: 'http://127.0.0.1:1/dashboard', icon: 'dashboard.svg'    },
   ],
 };
 
