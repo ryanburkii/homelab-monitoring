@@ -90,6 +90,21 @@ test('Storage.rollup: downsamples 1m to 10m for data older than 7d, and prunes 1
   s.close();
 });
 
+test('Storage: insert and list alert events', () => {
+  const s = mkStorage();
+  s.insertAlertEvent({ ts: 1000, machine: 'm1', guest: null,  metric: 'cpu',          kind: 'firing',   value: 95, threshold: 90, message: 'cpu hot' });
+  s.insertAlertEvent({ ts: 2000, machine: 'm1', guest: 'g1',  metric: 'mem',          kind: 'firing',   value: 92, threshold: 90, message: 'mem hot' });
+  s.insertAlertEvent({ ts: 3000, machine: 'm1', guest: null,  metric: 'cpu',          kind: 'resolved', value: 40, threshold: 90, message: 'cpu ok' });
+  const all = s.listAlertEvents({ limit: 10 });
+  assert.equal(all.length, 3);
+  assert.equal(all[0].ts, 3000, 'newest first');
+  assert.equal(all[2].ts, 1000);
+  const filtered = s.listAlertEvents({ limit: 10, machine: 'm1', guest: 'g1' });
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].metric, 'mem');
+  s.close();
+});
+
 test('Storage.query: auto-picks tier based on range span', () => {
   const s = mkStorage();
   const now = Date.now();
