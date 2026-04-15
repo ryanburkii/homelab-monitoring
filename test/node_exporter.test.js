@@ -20,3 +20,9 @@ test('parseMetrics: filesystem fields (/ only, tmpfs excluded)', () => {
   assert.equal(result.diskTotal, 107_374_182_400);
   assert.equal(result.diskAvailable, 53_687_091_200);
 });
+
+test('parseMetrics: network byte counters exclude loopback', () => {
+  const result = parseMetrics(fixture);
+  assert.equal(result.netRxBytes, 1_234_567_000);
+  assert.equal(result.netTxBytes, 567_800_000);
+});
