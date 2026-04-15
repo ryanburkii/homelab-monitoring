@@ -92,16 +92,33 @@ test('Storage.rollup: downsamples 1m to 10m for data older than 7d, and prunes 1
 
 test('Storage: insert and list alert events', () => {
   const s = mkStorage();
-  s.insertAlertEvent({ ts: 1000, machine: 'm1', guest: null,  metric: 'cpu',          kind: 'firing',   value: 95, threshold: 90, message: 'cpu hot' });
-  s.insertAlertEvent({ ts: 2000, machine: 'm1', guest: 'g1',  metric: 'mem',          kind: 'firing',   value: 92, threshold: 90, message: 'mem hot' });
-  s.insertAlertEvent({ ts: 3000, machine: 'm1', guest: null,  metric: 'cpu',          kind: 'resolved', value: 40, threshold: 90, message: 'cpu ok' });
+  s.insertAlertEvent({ ts: 1000, machine: 'm1', guest: null,  metric: 'cpu', kind: 'firing',   value: 95, threshold: 90, message: 'cpu hot' });
+  s.insertAlertEvent({ ts: 2000, machine: 'm1', guest: 'g1',  metric: 'mem', kind: 'firing',   value: 92, threshold: 90, message: 'mem hot' });
+  s.insertAlertEvent({ ts: 3000, machine: 'm1', guest: null,  metric: 'cpu', kind: 'resolved', value: 40, threshold: 90, message: 'cpu ok' });
+
+  // all events, newest first
   const all = s.listAlertEvents({ limit: 10 });
   assert.equal(all.length, 3);
   assert.equal(all[0].ts, 3000, 'newest first');
   assert.equal(all[2].ts, 1000);
+
+  // machine+guest filter: exactly the g1 mem event
   const filtered = s.listAlertEvents({ limit: 10, machine: 'm1', guest: 'g1' });
   assert.equal(filtered.length, 1);
   assert.equal(filtered[0].metric, 'mem');
+
+  // machine-only filter: host-level events only (guest IS NULL) — must NOT include g1
+  const hostOnly = s.listAlertEvents({ limit: 10, machine: 'm1' });
+  assert.equal(hostOnly.length, 2, 'machine-only should return only host-level (guest IS NULL) rows');
+  assert.ok(hostOnly.every(r => r.guest === null), 'all rows must have guest === null');
+  assert.ok(hostOnly.every(r => r.metric === 'cpu'), 'both host events are cpu');
+
+  // cross-machine isolation: m2 events must not appear in m1 results
+  s.insertAlertEvent({ ts: 4000, machine: 'm2', guest: null, metric: 'cpu', kind: 'firing', value: 80, threshold: 75, message: 'm2 cpu' });
+  const m1After = s.listAlertEvents({ limit: 10, machine: 'm1' });
+  assert.equal(m1After.length, 2, 'm2 event must not bleed into m1 machine-only results');
+  assert.ok(m1After.every(r => r.machine === 'm1'), 'all rows must belong to m1');
+
   s.close();
 });
 
