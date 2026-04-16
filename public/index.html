@@ -298,6 +298,21 @@ a.guest-row:active { transform: scale(0.99); }
   font-size: 0.68rem;
 }
 
+/* ─── Plan analytics link ─── */
+.plan-analytics-link {
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 0.35rem; padding: 0.3rem;
+  border-top: 1px dashed var(--current-line);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem; color: var(--purple);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 140ms var(--ease-out), color 140ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .plan-analytics-link:hover { background: rgba(189,147,249,0.08); color: var(--pink); }
+}
+
 /* ─── Offline guests section ─── */
 .offline-guests summary {
   cursor: pointer;
@@ -581,6 +596,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 <script>
 const POLL_INTERVAL_MS = 5000;
 let lastStatsOk = true;
+let planConfig = null;
 
 function formatBytes(n) {
   if (n == null) return '—';
@@ -702,12 +718,12 @@ function updateGuestList(card, state, machine) {
     details.hidden = false;
     details.querySelector('summary').textContent = `guests [${state.guests.length}]`;
     list.innerHTML = '';
-    for (const g of running) list.appendChild(buildGuestRow(g));
+    for (const g of running) list.appendChild(buildGuestRow(g, machine.name));
     offlineList.innerHTML = '';
     if (offline.length > 0) {
       offlineDetails.hidden = false;
       offlineDetails.querySelector('summary').textContent = `offline [${offline.length}]`;
-      for (const g of offline) offlineList.appendChild(buildGuestRow(g));
+      for (const g of offline) offlineList.appendChild(buildGuestRow(g, machine.name));
     } else {
       offlineDetails.hidden = true;
     }
@@ -722,7 +738,7 @@ function updateGuestList(card, state, machine) {
   }
 }
 
-function buildGuestRow(g) {
+function buildGuestRow(g, machineName) {
   const hasLink = !!g.url;
   const row = document.createElement(hasLink ? 'a' : 'div');
   row.className = 'guest-row';
@@ -784,6 +800,12 @@ function buildGuestRow(g) {
     }
   } else {
     iconEl.remove();
+  }
+  if (planConfig && planConfig.machine === machineName && planConfig.guest === g.name) {
+    const planEl = document.createElement('div');
+    planEl.className = 'plan-analytics-link';
+    planEl.textContent = 'minecraft analytics \u2192';
+    row.appendChild(planEl);
   }
   return row;
 }
@@ -973,6 +995,12 @@ document.getElementById('chartRangePicker').addEventListener('click', (e) => {
   fetchAndRenderChart();
 });
 document.getElementById('machinesGrid').addEventListener('click', (e) => {
+  if (e.target.closest('.plan-analytics-link')) {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = '/plan';
+    return;
+  }
   const btn = e.target.closest('.chart-btn');
   if (!btn) return;
   e.preventDefault();
@@ -1051,6 +1079,7 @@ document.getElementById('refreshBtn').addEventListener('click', fetchStats);
 fetchStats();
 refreshAlerts();
 setInterval(() => { fetchStats(); refreshAlerts(); }, POLL_INTERVAL_MS);
+fetch('/api/plan-config').then(r => r.ok ? r.json() : null).then(c => { planConfig = c; }).catch(() => {});
 </script>
 </body>
 </html>

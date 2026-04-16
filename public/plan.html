@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>burkii.status — minecraft</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="burkii.status">
+<meta name="theme-color" content="#282a36">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.min.css">
+<style>
+:root {
+  --bg: #282a36;
+  --bg-alt: #1e1f29;
+  --surface: #343746;
+  --current-line: #44475a;
+  --fg: #f8f8f2;
+  --comment: #6272a4;
+  --green: #50fa7b;
+  --yellow: #f1fa8c;
+  --orange: #ffb86c;
+  --red: #ff5555;
+  --pink: #ff79c6;
+  --purple: #bd93f9;
+  --cyan: #8be9fd;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Rajdhani, "JetBrains Mono", monospace;
+  min-height: 100vh;
+  color-scheme: dark;
+  overflow-x: hidden;
+}
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+  pointer-events: none; z-index: 9999;
+}
+
+header {
+  border-bottom: 1px solid var(--current-line);
+  background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 100%);
+  padding: 1.5rem 2rem;
+  display: flex; align-items: center; gap: 1.5rem;
+}
+.back-link {
+  color: var(--comment);
+  text-decoration: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  transition: color 140ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .back-link:hover { color: var(--purple); }
+}
+h1 {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 2rem; font-weight: 700; letter-spacing: -0.02em;
+}
+h1 .domain { color: var(--purple); text-shadow: 0 0 24px rgba(189,147,249,0.45); }
+h1 .tld    { color: var(--pink);   text-shadow: 0 0 24px rgba(255,121,198,0.45); }
+h1 .sub    { color: var(--comment); font-size: 0.6em; font-weight: 400; }
+.status-chip {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--comment);
+  display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.status-chip .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--comment); animation: pulse 2.5s ease-in-out infinite;
+}
+.status-chip[data-status="up"]      .dot { background: var(--green);  box-shadow: 0 0 6px var(--green); }
+.status-chip[data-status="loading"] .dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+.status-chip[data-status="down"]    .dot { background: var(--red);    box-shadow: 0 0 6px var(--red); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+.last-poll {
+  margin-left: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem; color: var(--comment);
+}
+.last-poll .prompt { color: var(--green); margin-right: 0.5ch; }
+.refresh {
+  background: transparent; border: 1px solid var(--current-line);
+  color: var(--fg); padding: 0.35rem 0.7rem; border-radius: 4px;
+  font-family: "JetBrains Mono", monospace; cursor: pointer;
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.refresh:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .refresh:hover { border-color: var(--purple); background: rgba(189,147,249,0.08); }
+}
+
+main {
+  max-width: 1200px; margin: 0 auto;
+  padding: 2rem; display: flex; flex-direction: column; gap: 2.5rem;
+}
+.section-title {
+  font-family: Rajdhani, monospace;
+  font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--comment);
+  margin-bottom: 1rem;
+}
+.section-title .accent { color: var(--pink); margin-right: 0.5ch; }
+
+.error-banner {
+  background: var(--surface); border: 1px solid var(--red); border-radius: 4px;
+  padding: 0.5rem 1rem; color: var(--red);
+  font-family: "JetBrains Mono", monospace; font-size: 0.78rem;
+  display: none;
+}
+.error-banner.visible { display: block; }
+
+/* ── Stat cards ── */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+.stat-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  overflow: hidden;
+  animation: cardEntry 420ms var(--ease-out) both;
+}
+.stat-card:nth-child(1) { animation-delay: 0ms; }
+.stat-card:nth-child(2) { animation-delay: 40ms; }
+.stat-card:nth-child(3) { animation-delay: 80ms; }
+.stat-card:nth-child(4) { animation-delay: 120ms; }
+.stat-card:nth-child(5) { animation-delay: 160ms; }
+.stat-card:nth-child(6) { animation-delay: 200ms; }
+.stat-card::before {
+  content: ""; position: absolute; inset-block: 0; left: 0;
+  width: 3px; background: var(--purple); opacity: 0.8;
+  border-radius: 4px 0 0 4px;
+}
+@keyframes cardEntry {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stat-card-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--comment);
+  margin-bottom: 0.35rem;
+}
+.stat-card-value {
+  font-family: Rajdhani, monospace;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--fg);
+  line-height: 1;
+}
+.stat-card-sub {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  color: var(--comment);
+  margin-top: 0.3rem;
+}
+
+/* ── Range picker ── */
+.section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.section-header .section-title { margin-bottom: 0; }
+.range-picker { display: flex; gap: 0.35rem; margin-left: auto; }
+.range-btn {
+  background: transparent;
+  border: 1px solid var(--current-line);
+  color: var(--comment);
+  padding: 0.3rem 0.7rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.range-btn:active { transform: scale(0.96); }
+.range-btn[data-active="true"] { border-color: var(--purple); color: var(--fg); background: var(--bg-alt); }
+@media (hover: hover) and (pointer: fine) {
+  .range-btn:hover { border-color: var(--purple); color: var(--fg); }
+}
+
+/* ── Chart panels ── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+.chart-panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  overflow: hidden;
+}
+.chart-panel::before {
+  content: ""; position: absolute; inset-block: 0; left: 0;
+  width: 3px; background: var(--purple); opacity: 0.8;
+  border-radius: 4px 0 0 4px;
+}
+.chart-panel-title {
+  font-family: Rajdhani, monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  color: var(--fg);
+  text-shadow: 0 0 16px rgba(189,147,249,0.35);
+  margin-bottom: 0.75rem;
+}
+.chart-container {
+  height: 260px;
+  background: var(--bg-alt);
+  border-radius: 3px;
+  padding: 0.5rem;
+  position: relative;
+}
+.chart-empty {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--comment);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+}
+
+/* ── Playerbase ── */
+.playerbase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+.playerbase-item {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 4px;
+  padding: 0.75rem;
+  text-align: center;
+  overflow: hidden;
+}
+.playerbase-item::before {
+  content: ""; position: absolute; inset-block: 0; left: 0;
+  width: 3px; opacity: 0.8;
+  border-radius: 4px 0 0 4px;
+  background: var(--pb-color, var(--purple));
+}
+.pb-count {
+  font-family: Rajdhani, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.pb-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--comment);
+  margin-top: 0.25rem;
+}
+
+/* ── Players table ── */
+.table-wrapper {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 4px;
+  overflow-x: auto;
+}
+.table-wrapper::before {
+  content: ""; position: absolute; inset-block: 0; left: 0;
+  width: 3px; background: var(--purple); opacity: 0.8;
+  border-radius: 4px 0 0 4px;
+  z-index: 1;
+}
+.players-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+}
+.players-table th {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--comment);
+  font-weight: 700;
+  font-size: 0.68rem;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--current-line);
+  white-space: nowrap;
+}
+.players-table td {
+  padding: 0.6rem 1rem;
+  color: var(--fg);
+  border-bottom: 1px solid var(--current-line);
+  white-space: nowrap;
+}
+.players-table tbody tr:last-child td { border-bottom: none; }
+.players-table tbody tr { transition: background 140ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .players-table tbody tr:hover { background: var(--bg-alt); }
+}
+.player-name { color: var(--purple); font-weight: 700; }
+.empty-text {
+  color: var(--comment);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  font-style: italic;
+  padding: 1rem;
+}
+
+/* ── uPlot Dracula ── */
+.u-wrap { background: transparent !important; }
+.u-axis { color: var(--comment) !important; }
+.u-legend {
+  color: var(--comment) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 0.72rem !important;
+}
+.u-legend .u-value { color: var(--fg) !important; }
+.u-legend .u-marker { width: 10px !important; height: 10px !important; }
+.u-select { background: rgba(189,147,249,0.18) !important; border: 1px solid var(--purple) !important; }
+.u-cursor-x, .u-cursor-y { background: var(--purple) !important; }
+
+footer {
+  margin-top: 3rem; padding: 1.2rem 2rem;
+  border-top: 1px solid var(--current-line); background: var(--bg-alt);
+  text-align: center;
+  font-family: "JetBrains Mono", monospace; font-size: 0.72rem; color: var(--comment);
+}
+footer .prompt { color: var(--green); margin-right: 0.5ch; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .chart-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  header { padding: 1rem 1.25rem; gap: 0.75rem; flex-wrap: wrap; }
+  h1 { font-size: 1.5rem; }
+  .last-poll { margin-left: 0; font-size: 0.7rem; }
+  main { padding: 1rem; gap: 1.5rem; }
+  .stat-cards { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .chart-container { height: 200px; }
+  .players-table { font-size: 0.7rem; }
+  .players-table th, .players-table td { padding: 0.5rem 0.6rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stat-card { animation: none; }
+  .status-chip .dot { animation: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="back-link">&larr; back</a>
+  <h1><span class="bracket">[</span><span class="domain">burkii</span><span class="tld">.status</span><span class="bracket">]</span> <span class="sub">/ minecraft</span></h1>
+  <div class="status-chip" id="planStatus" data-status="loading"><span class="dot"></span><span id="planStatusLabel">connecting</span></div>
+  <div class="last-poll"><span class="prompt">$</span><span id="lastRefresh">loading&hellip;</span></div>
+  <button class="refresh" id="refreshBtn" title="Refresh">&x27F3;</button>
+</header>
+<main>
+  <div class="error-banner" id="errorBanner"></div>
+
+  <section>
+    <div class="section-title"><span class="accent">&gt;</span>SERVER OVERVIEW</div>
+    <div class="stat-cards" id="overviewCards"></div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="accent">&gt;</span>ACTIVITY</div>
+      <div class="range-picker" id="rangePicker">
+        <button class="range-btn" type="button" data-range="1h">1h</button>
+        <button class="range-btn" type="button" data-range="24h" data-active="true">24h</button>
+        <button class="range-btn" type="button" data-range="7d">7d</button>
+        <button class="range-btn" type="button" data-range="30d">30d</button>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-panel">
+        <div class="chart-panel-title">players / tps</div>
+        <div class="chart-container" id="playersChart"><div class="chart-empty">loading&hellip;</div></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-panel-title">server performance</div>
+        <div class="chart-container" id="perfChart"><div class="chart-empty">loading&hellip;</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title"><span class="accent">&gt;</span>PLAYERBASE</div>
+    <div class="playerbase-grid" id="playerbaseGrid"></div>
+  </section>
+
+  <section>
+    <div class="section-title"><span class="accent">&gt;</span>PLAYERS</div>
+    <div class="table-wrapper">
+      <table class="players-table">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Playtime</th>
+            <th>Sessions</th>
+            <th>Last Seen</th>
+            <th>Activity</th>
+          </tr>
+        </thead>
+        <tbody id="playersBody">
+          <tr><td colspan="5" class="empty-text">loading&hellip;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<footer><span class="prompt">$</span>minecraft analytics via plan &mdash; refreshing every 60s</footer>
+<script src="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
+<script>
+const REFRESH_MS = 60000;
+let serverName = null;
+let onlineChart = null;
+let tpsChart = null;
+let rawOnlineData = null;
+let rawPerfData = null;
+let chartRange = '24h';
+var RANGE_MS = { '1h': 3600000, '24h': 86400000, '7d': 604800000, '30d': 2592000000 };
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function fetchPlan(path, params = {}) {
+  const url = new URL('/api/plan' + path, location.origin);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'HTTP ' + res.status);
+  }
+  return res.json();
+}
+
+function showStatus(s) {
+  const chip = document.getElementById('planStatus');
+  chip.dataset.status = s;
+  document.getElementById('planStatusLabel').textContent = s === 'up' ? 'connected' : s;
+}
+function showError(msg) {
+  const el = document.getElementById('errorBanner');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function hideError() { document.getElementById('errorBanner').classList.remove('visible'); }
+
+function tpsStyle(tps) {
+  if (tps == null || isNaN(tps)) return '';
+  if (tps >= 19.5) return 'color:var(--green)';
+  if (tps >= 18)   return 'color:var(--yellow)';
+  if (tps >= 15)   return 'color:var(--orange)';
+  return 'color:var(--red)';
+}
+
+function formatPlaytime(ms) {
+  if (ms == null || typeof ms !== 'number') return String(ms || '\u2014');
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  if (h >= 24) return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
+  return h + 'h ' + m + 'm';
+}
+
+function formatDate(v) {
+  if (!v) return '\u2014';
+  try { return new Date(typeof v === 'number' ? v : v).toLocaleDateString(); }
+  catch { return String(v); }
+}
+
+/* ── Overview cards ── */
+function renderOverview(overview, perf) {
+  const el = document.getElementById('overviewCards');
+  const nums = overview?.numbers || {};
+  const d7 = overview?.last_7_days || {};
+  const p7 = perf?.last_7_days || {};
+  const tpsVal = parseFloat(p7.average_tps ?? d7.average_tps ?? '');
+
+  const cards = [
+    { label: 'Online Now',      value: nums.online_players ?? '\u2014', style: (nums.online_players ?? 0) > 0 ? 'color:var(--green)' : '' },
+    { label: 'Total Players',   value: nums.total_players ?? '\u2014',  sub: nums.regular_players != null ? nums.regular_players + ' regular' : null },
+    { label: 'Unique (7d)',     value: d7.unique_players ?? '\u2014',   sub: d7.unique_players_day ?? null },
+    { label: 'New (7d)',        value: d7.new_players ?? '\u2014',      sub: d7.new_players_day ?? null },
+    { label: 'Avg TPS (7d)',    value: isNaN(tpsVal) ? '\u2014' : tpsVal.toFixed(2), style: tpsStyle(tpsVal) },
+    { label: 'Low TPS Spikes',  value: p7.low_tps_spikes ?? d7.low_tps_spikes ?? '\u2014', style: (p7.low_tps_spikes ?? 0) > 0 ? 'color:var(--orange)' : '' },
+  ];
+
+  el.innerHTML = cards.map(function (c) {
+    return '<div class="stat-card">' +
+      '<div class="stat-card-label">' + c.label + '</div>' +
+      '<div class="stat-card-value" style="' + (c.style || '') + '">' + c.value + '</div>' +
+      (c.sub ? '<div class="stat-card-sub">' + escapeHtml(String(c.sub)) + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+/* ── Charts ── */
+function filterByRange(points) {
+  var cutoff = Date.now() - RANGE_MS[chartRange];
+  return points.filter(function (p) { return p[0] >= cutoff; });
+}
+
+function renderOnlineChart(onlineData, perfData) {
+  var container = document.getElementById('playersChart');
+  var usePerfSrc = perfData?.values?.length > 0;
+  var raw = usePerfSrc ? perfData.values : (Array.isArray(onlineData) ? onlineData : (onlineData?.values || []));
+  var points = filterByRange(raw);
+  if (points.length === 0 || typeof uPlot === 'undefined') {
+    container.innerHTML = '<div class="chart-empty">' + (typeof uPlot === 'undefined' ? 'chart library unavailable' : 'no data available') + '</div>';
+    return;
+  }
+  container.innerHTML = '';
+  var ts = points.map(function (p) { return Math.floor(p[0] / 1000); });
+  var seriesData = [ts];
+  var series = [{}];
+  var scalesCfg = { x: { time: true }, players: { auto: true, range: function (u, lo, hi) { return [0, Math.max(hi, 1)]; } } };
+  var axesCfg = [
+    { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } },
+    { scale: 'players', stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } },
+  ];
+
+  if (usePerfSrc) {
+    var keys = perfData.keys || [];
+    var pIdx = Math.max(keys.indexOf('playersOnline'), 2);
+    var tIdx = Math.max(keys.indexOf('tps'), 1);
+    seriesData.push(points.map(function (p) { return p[pIdx] ?? null; }));
+    series.push({ label: 'players', stroke: '#50fa7b', fill: 'rgba(80,250,123,0.08)', width: 1.5, scale: 'players' });
+    seriesData.push(points.map(function (p) { return p[tIdx] ?? null; }));
+    series.push({ label: 'TPS', stroke: '#f1fa8c', width: 1.5, scale: 'tps' });
+    scalesCfg.tps = { range: [0, 22] };
+    axesCfg.push({ side: 1, scale: 'tps', stroke: '#f1fa8c', grid: { show: false },
+      values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0); }); } });
+  } else {
+    seriesData.push(points.map(function (p) { return p[1]; }));
+    series.push({ label: 'players', stroke: '#50fa7b', fill: 'rgba(80,250,123,0.08)', width: 1.5, scale: 'players' });
+  }
+
+  if (onlineChart) onlineChart.destroy();
+  onlineChart = new uPlot({
+    width: container.clientWidth,
+    height: container.clientHeight - 30,
+    padding: [8, 16, 8, 8],
+    cursor: { drag: { x: true, y: false } },
+    scales: scalesCfg,
+    axes: axesCfg,
+    series: series,
+  }, seriesData, container);
+}
+
+function renderTpsChart(data) {
+  var container = document.getElementById('perfChart');
+  var allPoints = data?.values || [];
+  var points = filterByRange(allPoints);
+  if (points.length === 0 || typeof uPlot === 'undefined') {
+    container.innerHTML = '<div class="chart-empty">' + (typeof uPlot === 'undefined' ? 'chart library unavailable' : 'no data available') + '</div>';
+    return;
+  }
+  container.innerHTML = '';
+  var keys = data.keys || [];
+  var find = function (k) { return keys.indexOf(k); };
+  var cpuIdx    = Math.max(find('cpu_usage'), find('cpu'), find('cpuUsage'));
+  var ramIdx    = find('ram');
+  var chunksIdx = find('chunks');
+  var entityIdx = find('entities');
+
+  var ts = points.map(function (p) { return Math.floor(p[0] / 1000); });
+  var seriesData = [ts];
+  var series = [{}];
+  var scalesCfg = { x: { time: true }, aux: { auto: true } };
+  var axesCfg = [
+    { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } },
+  ];
+  var hasLeft = false;
+
+  if (cpuIdx > 0) {
+    seriesData.push(points.map(function (p) { return p[cpuIdx] ?? null; }));
+    series.push({ label: 'CPU %', stroke: '#bd93f9', width: 1.5, scale: 'pct' });
+    scalesCfg.pct = { range: [0, 100] };
+    axesCfg.push({ scale: 'pct', stroke: '#bd93f9', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' },
+      values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0) + '%'; }); } });
+    hasLeft = true;
+  }
+  if (ramIdx > 0) {
+    seriesData.push(points.map(function (p) { return p[ramIdx] ?? null; }));
+    series.push({ label: 'RAM (MB)', stroke: '#ff79c6', width: 1.5, scale: 'aux' });
+    if (!hasLeft) {
+      axesCfg.push({ scale: 'aux', stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } });
+      hasLeft = true;
+    }
+  }
+  if (chunksIdx > 0) {
+    seriesData.push(points.map(function (p) { return p[chunksIdx] ?? null; }));
+    series.push({ label: 'chunks', stroke: '#8be9fd', width: 1, scale: 'aux' });
+  }
+  if (entityIdx > 0) {
+    seriesData.push(points.map(function (p) { return p[entityIdx] ?? null; }));
+    series.push({ label: 'entities', stroke: '#ffb86c', width: 1, scale: 'aux' });
+  }
+  if (!hasLeft) {
+    axesCfg.push({ scale: 'aux', stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } });
+  }
+  axesCfg.push({ side: 1, scale: cpuIdx > 0 ? 'aux' : 'pct', stroke: '#6272a4', grid: { show: false } });
+
+  if (tpsChart) tpsChart.destroy();
+  tpsChart = new uPlot({
+    width: container.clientWidth,
+    height: container.clientHeight - 60,
+    padding: [8, 16, 8, 8],
+    cursor: { drag: { x: true, y: false } },
+    scales: scalesCfg,
+    axes: axesCfg,
+    series: series,
+  }, seriesData, container);
+}
+
+/* ── Playerbase ── */
+var PB_COLORS = {
+  'Very Active': 'green', 'Active': 'cyan', 'Regular': 'purple',
+  'Irregular': 'yellow', 'New': 'pink', 'Inactive': 'comment',
+};
+
+function renderPlayerbase(data) {
+  var el = document.getElementById('playerbaseGrid');
+  var groups = data?.current_playerbase || data?.activity_index_groups || {};
+  if (Object.keys(groups).length === 0) {
+    el.innerHTML = '<div class="empty-text">no playerbase data</div>';
+    return;
+  }
+  el.innerHTML = Object.entries(groups).map(function (entry) {
+    var name = entry[0], count = entry[1];
+    var color = PB_COLORS[name] || 'fg';
+    return '<div class="playerbase-item" style="--pb-color:var(--' + color + ')">' +
+      '<div class="pb-count" style="color:var(--' + color + ')">' + count + '</div>' +
+      '<div class="pb-label">' + escapeHtml(name) + '</div></div>';
+  }).join('');
+}
+
+/* ── Players table ── */
+function renderPlayers(data) {
+  var tbody = document.getElementById('playersBody');
+  var players = data?.players || [];
+  if (players.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-text">no player data</td></tr>';
+    return;
+  }
+  tbody.innerHTML = players.slice(0, 100).map(function (p) {
+    var name = p.name || p.player_name || p.playerName || '\u2014';
+    var pt = p.playtime ?? p.activePlaytime ?? p.active_playtime;
+    var playtime = typeof pt === 'number' ? formatPlaytime(pt) : (pt || '\u2014');
+    var sessions = p.sessions ?? p.sessionCount ?? p.session_count ?? '\u2014';
+    var lastSeen = formatDate(p.last_seen ?? p.lastSeen);
+    var activity = p.activity_group ?? p.activityGroup ?? p.activity_index_group ?? '\u2014';
+    return '<tr>' +
+      '<td class="player-name">' + escapeHtml(name) + '</td>' +
+      '<td>' + escapeHtml(String(playtime)) + '</td>' +
+      '<td>' + sessions + '</td>' +
+      '<td>' + lastSeen + '</td>' +
+      '<td>' + escapeHtml(String(activity)) + '</td></tr>';
+  }).join('');
+}
+
+/* ── Data loading ── */
+async function refresh() {
+  var results = await Promise.allSettled([
+    fetchPlan('/v1/serverOverview', { server: serverName }),
+    fetchPlan('/v1/performanceOverview', { server: serverName }),
+    fetchPlan('/v1/playerbaseOverview', { server: serverName }),
+    fetchPlan('/v1/graph', { type: 'playersOnline', server: serverName }),
+    fetchPlan('/v1/graph', { type: 'optimizedPerformance', server: serverName }),
+    fetchPlan('/v1/playersTable', { server: serverName }),
+  ]);
+
+  var overview  = results[0].status === 'fulfilled' ? results[0].value : null;
+  var perf      = results[1].status === 'fulfilled' ? results[1].value : null;
+  var pbase     = results[2].status === 'fulfilled' ? results[2].value : null;
+  var onlineG   = results[3].status === 'fulfilled' ? results[3].value : null;
+  var perfG     = results[4].status === 'fulfilled' ? results[4].value : null;
+  var players   = results[5].status === 'fulfilled' ? results[5].value : null;
+
+  var failed = results.filter(function (r) { return r.status === 'rejected'; });
+  if (failed.length === results.length) {
+    throw new Error(failed[0].reason?.message || 'all Plan API requests failed');
+  }
+
+  if (overview || perf)  renderOverview(overview, perf);
+  if (onlineG) rawOnlineData = onlineG;
+  if (perfG)   rawPerfData = perfG;
+  if (onlineG || perfG)  renderOnlineChart(rawOnlineData, rawPerfData);
+  if (perfG)             renderTpsChart(perfG);
+  if (pbase)             renderPlayerbase(pbase);
+  if (players)           renderPlayers(players);
+
+  document.getElementById('lastRefresh').textContent = 'last refresh ' + new Date().toLocaleTimeString();
+  if (failed.length > 0) {
+    showError(failed.length + '/' + results.length + ' requests failed');
+  } else {
+    hideError();
+  }
+  showStatus('up');
+}
+
+async function init() {
+  showStatus('loading');
+  try {
+    var meta = await fetchPlan('/v1/networkMetadata');
+    serverName = meta?.currentServer?.serverName
+      || (meta?.servers && meta.servers[0]?.serverName)
+      || meta?.currentServer?.serverUUID
+      || null;
+    if (!serverName) throw new Error('no server found in Plan metadata');
+    await refresh();
+  } catch (err) {
+    showError(err.message);
+    showStatus('down');
+  }
+}
+
+/* ── Resize ── */
+var resizeTimer;
+window.addEventListener('resize', function () {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function () {
+    if (onlineChart) {
+      var c1 = document.getElementById('playersChart');
+      onlineChart.setSize({ width: c1.clientWidth, height: c1.clientHeight - 30 });
+    }
+    if (tpsChart) {
+      var c2 = document.getElementById('perfChart');
+      tpsChart.setSize({ width: c2.clientWidth, height: c2.clientHeight - 60 });
+    }
+  }, 200);
+});
+
+document.getElementById('rangePicker').addEventListener('click', function (e) {
+  var btn = e.target.closest('.range-btn');
+  if (!btn || btn.dataset.range === chartRange) return;
+  chartRange = btn.dataset.range;
+  document.querySelectorAll('.range-btn').forEach(function (b) {
+    b.dataset.active = b.dataset.range === chartRange ? 'true' : 'false';
+  });
+  if (rawOnlineData || rawPerfData) renderOnlineChart(rawOnlineData, rawPerfData);
+  if (rawPerfData) renderTpsChart(rawPerfData);
+});
+
+document.getElementById('refreshBtn').addEventListener('click', function () {
+  if (serverName) refresh().catch(function (e) { showError(e.message); showStatus('down'); });
+  else init();
+});
+
+init();
+setInterval(function () {
+  if (serverName) refresh().catch(function (e) { showError(e.message); showStatus('down'); });
+}, REFRESH_MS);
+</script>
+</body>
+</html>

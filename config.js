@@ -43,6 +43,14 @@ module.exports = {
     // { machine: "proxmox-internal", guest: "dashboard",  url: "http://REPLACE_ME:3000",      icon: "dashboard.svg"    },
   ],
 
+  // Plan Player Analytics integration — adds a Minecraft analytics page.
+  // Set machine/guest to the VM or LXC running the Minecraft server.
+  plan: {
+    url: 'http://192.168.20.87:8804',
+    machine: 'REPLACE_ME',   // machines[].name of the Proxmox host
+    guest: 'REPLACE_ME',     // guest name of the Minecraft VM/LXC
+  },
+
   // Alerting via ntfy. Remove this block (or leave it out) to disable alerts.
   // ntfy topics are their own auth — keep the URL private.
   alerts: {

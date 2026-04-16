@@ -25,6 +25,11 @@ const devConfig = {
     { machine: 'proxmox-internal', guest: 'plex-lxc',   url: 'http://127.0.0.1:1/plex',      icon: 'plex-light.svg'   },
     { machine: 'proxmox-internal', guest: 'dashboard',  url: 'http://127.0.0.1:1/dashboard', icon: 'dashboard.svg'    },
   ],
+  plan: {
+    url: 'http://mock',
+    machine: 'proxmox-dmz',
+    guest: 'mc-server',
+  },
 };
 
 function drift(base, range, freq) {
@@ -129,6 +134,83 @@ app.get('/api/history', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Plan mock API ──────────────────────────────────────
+app.get('/plan', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'plan.html')));
+app.get('/api/plan-config', (_req, res) => res.json({ machine: devConfig.plan.machine, guest: devConfig.plan.guest }));
+
+function mockPlanGraph(type) {
+  const now = Date.now();
+  const points = [];
+  var step = type === 'playersOnline' ? 300_000 : 300_000;
+  for (let t = now - 7 * 24 * 3600_000; t <= now; t += step) {
+    const hour = new Date(t).getHours();
+    const activity = Math.sin((hour - 6) * Math.PI / 12);
+    if (type === 'playersOnline') {
+      points.push([t, Math.max(0, Math.round(3 + activity * 4 + (Math.random() - 0.5) * 2))]);
+    } else {
+      const tps = Math.min(20, Math.max(14, 19.8 - Math.random() * 0.6 + activity * 0.3));
+      const players = Math.max(0, Math.round(3 + activity * 4 + (Math.random() - 0.5) * 2));
+      const chunks = Math.round(4000 + players * 200 + Math.random() * 300);
+      const entities = Math.round(800 + players * 60 + Math.random() * 100);
+      var cpu = Math.min(100, Math.max(5, 25 + players * 5 + Math.random() * 10));
+      points.push([t, tps, players, chunks, entities, 42_000, 3200 + Math.random() * 400, cpu]);
+    }
+  }
+  if (type === 'playersOnline') return { keys: ['date', 'playersOnline'], values: points };
+  return {
+    keys: ['date', 'tps', 'playersOnline', 'chunks', 'entities', 'free_disk_space', 'ram', 'cpu'],
+    values: points,
+    zones: { tpsThresholdMed: 18, tpsThresholdLow: 15 },
+  };
+}
+
+app.use('/api/plan', (req, res) => {
+  const p = req.path;
+  if (p === '/v1/networkMetadata') {
+    return res.json({
+      currentServer: { serverName: 'Survival', serverUUID: 'mock-uuid-001' },
+      servers: [{ serverName: 'Survival', serverUUID: 'mock-uuid-001' }],
+    });
+  }
+  if (p === '/v1/serverOverview') {
+    return res.json({
+      numbers: { total_players: 42, regular_players: 12, online_players: 3 },
+      last_7_days: { unique_players: 18, unique_players_day: '2.57/day', new_players: 4, new_players_day: '0.57/day', average_tps: '19.94', low_tps_spikes: 2, downtime: '0s' },
+      last_30_days: { unique_players: 31, new_players: 9, average_tps: '19.91' },
+    });
+  }
+  if (p === '/v1/performanceOverview') {
+    return res.json({
+      last_7_days: { average_tps: '19.94', low_tps_spikes: 2, average_players: '2.8', average_entities: '946', average_chunks: '4521' },
+      last_30_days: { average_tps: '19.91', low_tps_spikes: 7, average_players: '2.3', average_entities: '912', average_chunks: '4380' },
+    });
+  }
+  if (p === '/v1/playerbaseOverview') {
+    return res.json({
+      current_playerbase: { 'Very Active': 3, 'Active': 5, 'Regular': 4, 'Irregular': 8, 'New': 4, 'Inactive': 18 },
+    });
+  }
+  if (p === '/v1/graph') {
+    return res.json(mockPlanGraph(req.query.type));
+  }
+  if (p === '/v1/playersTable') {
+    const now = Date.now();
+    return res.json({ players: [
+      { name: 'xXDragonSlayerXx', playtime: 432000000, sessions: 89,  last_seen: now - 3600000,    activity_group: 'Very Active' },
+      { name: 'CraftQueen',       playtime: 310000000, sessions: 67,  last_seen: now - 7200000,    activity_group: 'Very Active' },
+      { name: 'BlockMaster99',    playtime: 248000000, sessions: 52,  last_seen: now - 14400000,   activity_group: 'Active' },
+      { name: 'RedstoneWiz',      playtime: 198000000, sessions: 41,  last_seen: now - 86400000,   activity_group: 'Active' },
+      { name: 'SkyBuilder',       playtime: 156000000, sessions: 38,  last_seen: now - 43200000,   activity_group: 'Active' },
+      { name: 'MinerJoe',         playtime: 124000000, sessions: 30,  last_seen: now - 172800000,  activity_group: 'Regular' },
+      { name: 'EnderKnight',      playtime: 89000000,  sessions: 22,  last_seen: now - 259200000,  activity_group: 'Regular' },
+      { name: 'PixelFarmer',      playtime: 67000000,  sessions: 15,  last_seen: now - 345600000,  activity_group: 'Irregular' },
+      { name: 'NetherExplorer',   playtime: 45000000,  sessions: 9,   last_seen: now - 604800000,  activity_group: 'Irregular' },
+      { name: 'newbie_steve',     playtime: 3600000,   sessions: 2,   last_seen: now - 86400000,   activity_group: 'New' },
+    ]});
+  }
+  res.status(404).json({ error: 'unknown Plan endpoint' });
 });
 
 app.use(express.static(path.join(__dirname, 'public')));

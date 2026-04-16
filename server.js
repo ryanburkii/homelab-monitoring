@@ -57,6 +57,15 @@ function validateConfig(cfg) {
       if (!o.machine || !machineNames.has(o.machine)) errors.push(`alerts.overrides[${i}].machine '${o.machine}' not in machines`);
     }
   }
+  if (cfg.plan !== undefined) {
+    if (!cfg.plan || typeof cfg.plan !== 'object') {
+      errors.push('plan must be an object');
+    } else {
+      if (!cfg.plan.url || typeof cfg.plan.url !== 'string') errors.push('plan.url must be a non-empty string');
+      if (!cfg.plan.machine) errors.push('plan.machine is required');
+      if (!cfg.plan.guest) errors.push('plan.guest is required');
+    }
+  }
   if (errors.length) {
     throw new Error('config.js validation failed:\n  - ' + errors.join('\n  - '));
   }
@@ -149,6 +158,30 @@ function main() {
       res.status(500).json({ error: err.message });
     }
   });
+
+  if (config.plan) {
+    app.get('/plan', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'plan.html')));
+
+    app.get('/api/plan-config', (_req, res) => {
+      res.json({ machine: config.plan.machine, guest: config.plan.guest });
+    });
+
+    app.use('/api/plan', async (req, res) => {
+      const target = new URL(req.path, config.plan.url);
+      for (const [k, v] of Object.entries(req.query)) target.searchParams.set(k, v);
+      try {
+        const resp = await globalThis.fetch(target.toString(), { signal: AbortSignal.timeout(10_000) });
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('json')) {
+          res.status(resp.status).json(await resp.json());
+        } else {
+          res.status(resp.status).type(ct).send(await resp.text());
+        }
+      } catch (err) {
+        res.status(502).json({ error: `Plan API: ${err.message}` });
+      }
+    });
+  }
 
   app.use(express.static(path.join(__dirname, 'public')));
 
