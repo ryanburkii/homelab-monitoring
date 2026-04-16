@@ -80,7 +80,7 @@ h1 .sub    { color: var(--comment); font-size: 0.6em; font-weight: 400; }
 }
 .status-chip .dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--comment); animation: pulse 2.5s ease-in-out infinite;
+  background: var(--comment); animation: pulse 2.5s var(--ease-in-out) infinite;
 }
 .status-chip[data-status="up"]      .dot { background: var(--green);  box-shadow: 0 0 6px var(--green); }
 .status-chip[data-status="loading"] .dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
@@ -119,9 +119,11 @@ main {
   background: var(--surface); border: 1px solid var(--red); border-radius: 4px;
   padding: 0.5rem 1rem; color: var(--red);
   font-family: "JetBrains Mono", monospace; font-size: 0.78rem;
-  display: none;
+  opacity: 0; transform: translateY(-4px);
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+  pointer-events: none; max-height: 0; overflow: hidden;
 }
-.error-banner.visible { display: block; }
+.error-banner.visible { opacity: 1; transform: translateY(0); pointer-events: auto; max-height: 4rem; }
 
 /* ── Stat cards ── */
 .stat-cards {
@@ -136,7 +138,7 @@ main {
   border-radius: 4px;
   padding: 1rem 1.25rem;
   overflow: hidden;
-  animation: cardEntry 420ms var(--ease-out) both;
+  animation: cardEntry 300ms var(--ease-out) both;
 }
 .stat-card:nth-child(1) { animation-delay: 0ms; }
 .stat-card:nth-child(2) { animation-delay: 40ms; }

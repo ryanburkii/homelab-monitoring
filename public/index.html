@@ -68,7 +68,7 @@ h1 .tld    { color: var(--pink);   text-shadow: 0 0 24px rgba(255,121,198,0.45);
 }
 .status-chip .dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--comment); animation: pulse 2.5s ease-in-out infinite;
+  background: var(--comment); animation: pulse 2.5s var(--ease-in-out) infinite;
 }
 .status-chip[data-status="up"]       .dot { background: var(--green);  box-shadow: 0 0 6px var(--green); }
 .status-chip[data-status="degraded"] .dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
@@ -112,7 +112,7 @@ main {
   padding: 1.25rem 1.25rem 1.25rem 1.5rem;
   transition: border-color 200ms var(--ease-out);
   overflow: hidden;
-  animation: cardEntry 420ms var(--ease-out) both;
+  animation: cardEntry 300ms var(--ease-out) both;
 }
 .machines-grid .card:nth-child(1) { animation-delay: 0ms; }
 .machines-grid .card:nth-child(2) { animation-delay: 60ms; }
@@ -211,7 +211,7 @@ a.guest-row {
   cursor: pointer;
   transition: border-left-color 140ms var(--ease-out), transform 160ms var(--ease-out), background 140ms var(--ease-out);
 }
-a.guest-row:active { transform: scale(0.99); }
+a.guest-row:active { transform: scale(0.98); }
 @media (hover: hover) and (pointer: fine) {
   a.guest-row:hover { background: var(--current-line); border-left-color: var(--purple); }
   a.guest-row:hover .guest-row-head .guest-name { color: var(--purple); }
@@ -346,9 +346,11 @@ a.guest-row:active { transform: scale(0.99); }
   background: var(--surface); border: 1px solid var(--red); border-radius: 4px;
   padding: 0.5rem 1rem; color: var(--red);
   font-family: "JetBrains Mono", monospace; font-size: 0.78rem;
-  display: none;
+  opacity: 0; transform: translateY(-4px);
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+  pointer-events: none; max-height: 0; overflow: hidden;
 }
-.error-banner.visible { display: block; }
+.error-banner.visible { opacity: 1; transform: translateY(0); pointer-events: auto; max-height: 4rem; }
 
 footer {
   margin-top: 3rem; padding: 1.2rem 2rem;
@@ -372,7 +374,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
 }
 .chart-btn::before { content: "▤"; }
-.chart-btn:active { transform: scale(0.92); }
+.chart-btn:active { transform: scale(0.97); }
 @media (hover: hover) and (pointer: fine) {
   .chart-btn:hover { border-color: var(--purple); color: var(--purple); background: var(--bg-alt); }
 }
@@ -438,7 +440,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   padding: 0;
   transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), transform 160ms var(--ease-out);
 }
-.chart-modal-close:active { transform: scale(0.92); }
+.chart-modal-close:active { transform: scale(0.97); }
 @media (hover: hover) and (pointer: fine) {
   .chart-modal-close:hover { border-color: var(--red); color: var(--red); }
 }
