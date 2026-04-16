@@ -200,12 +200,54 @@ main {
   .range-btn:hover { border-color: var(--purple); color: var(--fg); }
 }
 
-/* ── Chart panels ── */
-.chart-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
+/* ── Chart toolbar ── */
+.chart-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;
 }
+.chart-toolbar-right { display: flex; align-items: center; gap: 0.35rem; }
+.toolbar-divider { width: 1px; height: 16px; background: var(--current-line); margin: 0 0.25rem; }
+.preset-picker { display: flex; gap: 0.35rem; }
+.preset-btn {
+  background: transparent;
+  border: 1px solid var(--current-line);
+  color: var(--comment);
+  padding: 0.3rem 0.7rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.preset-btn:active { transform: scale(0.96); }
+.preset-btn[data-active="true"] { border-color: var(--purple); color: var(--fg); background: var(--bg-alt); }
+@media (hover: hover) and (pointer: fine) {
+  .preset-btn:hover { border-color: var(--purple); color: var(--fg); }
+}
+.chart-reset-btn {
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 0.3rem 0.7rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease-out), border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.chart-reset-btn.visible { opacity: 1; pointer-events: auto; }
+.chart-reset-btn:active { transform: scale(0.96); }
+@media (hover: hover) and (pointer: fine) {
+  .chart-reset-btn:hover { background: rgba(255,85,85,0.1); }
+}
+
+/* ── Chart panels ── */
 .chart-panel {
   position: relative;
   background: var(--surface);
@@ -230,7 +272,7 @@ main {
   margin-bottom: 0.75rem;
 }
 .chart-container {
-  height: 260px;
+  height: 380px;
   background: var(--bg-alt);
   border-radius: 3px;
   padding: 0.5rem;
@@ -354,7 +396,8 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .chart-grid { grid-template-columns: 1fr; }
+  .chart-toolbar { flex-direction: column; align-items: stretch; }
+  .chart-toolbar-right { justify-content: flex-end; }
 }
 @media (max-width: 520px) {
   header { padding: 1rem 1.25rem; gap: 0.75rem; flex-wrap: wrap; }
@@ -362,7 +405,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   .last-poll { margin-left: 0; font-size: 0.7rem; }
   main { padding: 1rem; gap: 1.5rem; }
   .stat-cards { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
-  .chart-container { height: 200px; }
+  .chart-container { height: 280px; }
   .players-table { font-size: 0.7rem; }
   .players-table th, .players-table td { padding: 0.5rem 0.6rem; }
 }
