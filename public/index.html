@@ -465,6 +465,26 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 @media (hover: hover) and (pointer: fine) {
   .chart-range-btn:hover { border-color: var(--purple); color: var(--fg); }
 }
+.chart-reset-btn {
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 0.3rem 0.7rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease-out), border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.chart-reset-btn.visible { opacity: 1; pointer-events: auto; }
+.chart-reset-btn:active { transform: scale(0.96); }
+@media (hover: hover) and (pointer: fine) {
+  .chart-reset-btn:hover { background: rgba(255,85,85,0.1); }
+}
 .chart-canvas {
   flex: 1;
   min-height: 360px;
@@ -587,6 +607,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
         <button class="chart-range-btn" type="button" data-range="7d">7d</button>
         <button class="chart-range-btn" type="button" data-range="30d">30d</button>
       </div>
+      <button class="chart-reset-btn" type="button" id="chartResetBtn" title="Reset zoom">RESET</button>
       <button class="chart-modal-close" type="button" id="chartModalClose" title="Close (Esc)">✕</button>
     </div>
     <div class="chart-canvas" id="chartCanvas">
@@ -973,7 +994,29 @@ function renderChart(data) {
       { label: 'tx MB/s', stroke: '#50fa7b', width: 1,   scale: 'mb' },
     ],
   };
+  var resetBtn = document.getElementById('chartResetBtn');
+  resetBtn.classList.remove('visible');
+
+  opts.hooks = {
+    setScale: [function (u, key) {
+      if (key !== 'x') return;
+      var xData = u.data[0];
+      var fullMin = xData[0];
+      var fullMax = xData[xData.length - 1];
+      var curMin = u.scales.x.min;
+      var curMax = u.scales.x.max;
+      var isZoomed = Math.abs(curMin - fullMin) > 1 || Math.abs(curMax - fullMax) > 1;
+      resetBtn.classList.toggle('visible', isZoomed);
+    }],
+  };
+
   chartInstance = new uPlot(opts, [timestamps, cpu, memPct, netRxMB, netTxMB], canvas);
+
+  canvas.addEventListener('dblclick', function () {
+    if (!chartInstance) return;
+    var xData = chartInstance.data[0];
+    chartInstance.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
+  });
 }
 
 document.getElementById('chartModalClose').addEventListener('click', closeChart);
@@ -984,6 +1027,11 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !document.getElementById('chartModal').hidden) {
     closeChart();
   }
+});
+document.getElementById('chartResetBtn').addEventListener('click', function () {
+  if (!chartInstance) return;
+  var xData = chartInstance.data[0];
+  chartInstance.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
 });
 document.getElementById('chartRangePicker').addEventListener('click', (e) => {
   const btn = e.target.closest('.chart-range-btn');
