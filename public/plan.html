@@ -488,12 +488,30 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 <script>
 const REFRESH_MS = 60000;
 let serverName = null;
-let onlineChart = null;
-let tpsChart = null;
+let unifiedChart = null;
 let rawOnlineData = null;
 let rawPerfData = null;
 let chartRange = '24h';
+let activePreset = 'all';
 var RANGE_MS = { '1h': 3600000, '24h': 86400000, '7d': 604800000, '30d': 2592000000 };
+
+var METRIC_DEFS = [
+  { key: 'playersOnline', label: 'players', color: '#50fa7b', fill: 'rgba(80,250,123,0.08)', width: 1.5, scale: 'count' },
+  { key: 'tps',           label: 'TPS',     color: '#f1fa8c', fill: null,                    width: 1.5, scale: 'tps' },
+  { key: 'cpu',           label: 'CPU %',   color: '#bd93f9', fill: null,                    width: 1.5, scale: 'pct', altKeys: ['cpu_usage', 'cpuUsage'] },
+  { key: 'ram',           label: 'RAM (MB)',color: '#ff79c6', fill: null,                    width: 1.5, scale: 'aux' },
+  { key: 'entities',      label: 'entities',color: '#ffb86c', fill: null,                    width: 1,   scale: 'count' },
+  { key: 'chunks',        label: 'chunks',  color: '#8be9fd', fill: null,                    width: 1,   scale: 'count' },
+  { key: 'disk',          label: 'disk',    color: '#ff5555', fill: null,                    width: 1,   scale: 'aux' },
+  { key: 'ping',          label: 'ping',    color: '#f8f8f2', fill: null,                    width: 1,   scale: 'aux', altKeys: ['avgPing'] },
+];
+
+var PRESETS = {
+  all:     METRIC_DEFS.map(function (m) { return m.key; }),
+  players: ['playersOnline', 'tps'],
+  perf:    ['tps', 'cpu', 'ram', 'disk'],
+  world:   ['entities', 'chunks', 'playersOnline'],
+};
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -574,6 +592,40 @@ function renderOverview(overview, perf) {
 function filterByRange(points) {
   var cutoff = Date.now() - RANGE_MS[chartRange];
   return points.filter(function (p) { return p[0] >= cutoff; });
+}
+
+function findKeyIndex(keys, metricDef) {
+  var idx = keys.indexOf(metricDef.key);
+  if (idx >= 0) return idx;
+  var alts = metricDef.altKeys || [];
+  for (var i = 0; i < alts.length; i++) {
+    idx = keys.indexOf(alts[i]);
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function mergePlayerData(perfPoints, perfKeys, onlineData) {
+  var pIdx = perfKeys.indexOf('playersOnline');
+  if (pIdx >= 0) return null;
+
+  var onlineRaw = Array.isArray(onlineData) ? onlineData : (onlineData?.values || []);
+  if (onlineRaw.length === 0) return null;
+
+  var result = [];
+  var oi = 0;
+  for (var pi = 0; pi < perfPoints.length; pi++) {
+    var perfTs = perfPoints[pi][0];
+    while (oi < onlineRaw.length - 1 && Math.abs(onlineRaw[oi + 1][0] - perfTs) < Math.abs(onlineRaw[oi][0] - perfTs)) {
+      oi++;
+    }
+    if (Math.abs(onlineRaw[oi][0] - perfTs) <= 30000) {
+      result.push(onlineRaw[oi][1] ?? null);
+    } else {
+      result.push(null);
+    }
+  }
+  return result;
 }
 
 function renderOnlineChart(onlineData, perfData) {
