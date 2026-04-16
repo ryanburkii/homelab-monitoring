@@ -391,22 +391,27 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   <section>
     <div class="section-header">
       <div class="section-title"><span class="accent">&gt;</span>ACTIVITY</div>
-      <div class="range-picker" id="rangePicker">
-        <button class="range-btn" type="button" data-range="1h">1h</button>
-        <button class="range-btn" type="button" data-range="24h" data-active="true">24h</button>
-        <button class="range-btn" type="button" data-range="7d">7d</button>
-        <button class="range-btn" type="button" data-range="30d">30d</button>
-      </div>
     </div>
-    <div class="chart-grid">
-      <div class="chart-panel">
-        <div class="chart-panel-title">players / tps</div>
-        <div class="chart-container" id="playersChart"><div class="chart-empty">loading&hellip;</div></div>
+    <div class="chart-panel">
+      <div class="chart-toolbar">
+        <div class="preset-picker" id="presetPicker">
+          <button class="preset-btn" type="button" data-preset="all" data-active="true">ALL</button>
+          <button class="preset-btn" type="button" data-preset="players">PLAYERS</button>
+          <button class="preset-btn" type="button" data-preset="perf">PERF</button>
+          <button class="preset-btn" type="button" data-preset="world">WORLD</button>
+        </div>
+        <div class="chart-toolbar-right">
+          <div class="range-picker" id="rangePicker">
+            <button class="range-btn" type="button" data-range="1h">1h</button>
+            <button class="range-btn" type="button" data-range="24h" data-active="true">24h</button>
+            <button class="range-btn" type="button" data-range="7d">7d</button>
+            <button class="range-btn" type="button" data-range="30d">30d</button>
+          </div>
+          <div class="toolbar-divider"></div>
+          <button class="chart-reset-btn" type="button" id="chartResetBtn" title="Reset zoom">RESET</button>
+        </div>
       </div>
-      <div class="chart-panel">
-        <div class="chart-panel-title">server performance</div>
-        <div class="chart-container" id="perfChart"><div class="chart-empty">loading&hellip;</div></div>
-      </div>
+      <div class="chart-container" id="unifiedChart"><div class="chart-empty">loading&hellip;</div></div>
     </div>
   </section>
 
@@ -530,7 +535,8 @@ function filterByRange(points) {
 
 function renderOnlineChart(onlineData, perfData) {
   var container = document.getElementById('playersChart');
-  var usePerfSrc = perfData?.values?.length > 0;
+  var perfKeys = perfData?.keys || [];
+  var usePerfSrc = perfData?.values?.length > 0 && perfKeys.indexOf('playersOnline') >= 0;
   var raw = usePerfSrc ? perfData.values : (Array.isArray(onlineData) ? onlineData : (onlineData?.values || []));
   var points = filterByRange(raw);
   if (points.length === 0 || typeof uPlot === 'undefined') {
@@ -548,16 +554,17 @@ function renderOnlineChart(onlineData, perfData) {
   ];
 
   if (usePerfSrc) {
-    var keys = perfData.keys || [];
-    var pIdx = Math.max(keys.indexOf('playersOnline'), 2);
-    var tIdx = Math.max(keys.indexOf('tps'), 1);
+    var pIdx = perfKeys.indexOf('playersOnline');
+    var tIdx = perfKeys.indexOf('tps');
     seriesData.push(points.map(function (p) { return p[pIdx] ?? null; }));
     series.push({ label: 'players', stroke: '#50fa7b', fill: 'rgba(80,250,123,0.08)', width: 1.5, scale: 'players' });
-    seriesData.push(points.map(function (p) { return p[tIdx] ?? null; }));
-    series.push({ label: 'TPS', stroke: '#f1fa8c', width: 1.5, scale: 'tps' });
-    scalesCfg.tps = { range: [0, 22] };
-    axesCfg.push({ side: 1, scale: 'tps', stroke: '#f1fa8c', grid: { show: false },
-      values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0); }); } });
+    if (tIdx >= 0) {
+      seriesData.push(points.map(function (p) { return p[tIdx] ?? null; }));
+      series.push({ label: 'TPS', stroke: '#f1fa8c', width: 1.5, scale: 'tps' });
+      scalesCfg.tps = { range: [0, 22] };
+      axesCfg.push({ side: 1, scale: 'tps', stroke: '#f1fa8c', grid: { show: false },
+        values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0); }); } });
+    }
   } else {
     seriesData.push(points.map(function (p) { return p[1]; }));
     series.push({ label: 'players', stroke: '#50fa7b', fill: 'rgba(80,250,123,0.08)', width: 1.5, scale: 'players' });
