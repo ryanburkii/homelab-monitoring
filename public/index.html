@@ -578,6 +578,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   <h1><span class="bracket">[</span><span class="domain">burkii</span><span class="tld">.status</span><span class="bracket">]</span></h1>
   <div class="status-chip" id="globalStatus" data-status="down"><span class="dot"></span><span id="globalStatusLabel">booting</span></div>
   <div class="last-poll"><span class="prompt">$</span><span id="lastPoll">waiting for first poll…</span></div>
+  <a href="/lights" class="refresh" id="lightsLink" title="Lights" hidden>lights</a>
   <button class="refresh" id="refreshBtn" title="Force refresh">⟳</button>
 </header>
 <main>
@@ -1129,6 +1130,9 @@ fetchStats();
 refreshAlerts();
 setInterval(() => { fetchStats(); refreshAlerts(); }, POLL_INTERVAL_MS);
 fetch('/api/plan-config').then(r => r.ok ? r.json() : null).then(c => { planConfig = c; }).catch(() => {});
+fetch('/api/lights', { method: 'HEAD' }).then((r) => {
+  if (r.status !== 404) document.getElementById('lightsLink').hidden = false;
+}).catch(() => {});
 </script>
 </body>
 </html>

@@ -43,6 +43,13 @@ module.exports = {
     // { machine: "proxmox-internal", guest: "dashboard",  url: "http://REPLACE_ME:3000",      icon: "dashboard.svg"    },
   ],
 
+  // Home Assistant / Hue lights integration. Remove this block (or leave it out) to disable.
+  // Token: HA Profile → Long-lived Access Tokens → Create Token. Paste below.
+  // homeAssistant: {
+  //   url: "http://homeassistant.local:8123",
+  //   token: "REPLACE_ME",
+  // },
+
   // Plan Player Analytics integration — adds a Minecraft analytics page.
   // Set machine/guest to the VM or LXC running the Minecraft server.
   plan: {

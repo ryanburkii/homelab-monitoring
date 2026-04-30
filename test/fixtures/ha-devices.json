@@ -1,0 +1,6 @@
+[
+  { "id": "device_lr_lamp", "area_id": "living_room" },
+  { "id": "device_lr_ceiling", "area_id": "living_room" },
+  { "id": "device_bedroom_lamp", "area_id": "bedroom" },
+  { "id": "device_no_area", "area_id": null }
+]

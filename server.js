@@ -6,6 +6,8 @@ const { AlertManager } = require('./lib/alerts.js');
 const { Storage, METRIC_COLUMNS } = require('./lib/storage.js');
 const proxmox = require('./lib/proxmox.js');
 const nodeExporter = require('./lib/node_exporter.js');
+const { HAClient, pctToBrightness } = require('./lib/home_assistant.js');
+const { SseBroker } = require('./lib/sse_broker.js');
 
 const ROLLUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
 const RANGE_PRESETS = {
@@ -66,6 +68,19 @@ function validateConfig(cfg) {
       if (!cfg.plan.guest) errors.push('plan.guest is required');
     }
   }
+  if (cfg.homeAssistant !== undefined) {
+    const ha = cfg.homeAssistant;
+    if (!ha || typeof ha !== 'object') {
+      errors.push('homeAssistant must be an object');
+    } else {
+      if (!ha.url || typeof ha.url !== 'string' || ha.url.includes('REPLACE_ME')) {
+        errors.push('homeAssistant.url must be a non-empty URL');
+      }
+      if (!ha.token || typeof ha.token !== 'string' || ha.token.includes('REPLACE_ME')) {
+        errors.push('homeAssistant.token must be a non-empty long-lived access token');
+      }
+    }
+  }
   if (errors.length) {
     throw new Error('config.js validation failed:\n  - ' + errors.join('\n  - '));
   }
@@ -107,7 +122,19 @@ function main() {
   });
   poller.start();
 
+  let haClient = null;
+  let haBroker = null;
+  if (config.homeAssistant) {
+    haClient = new HAClient(config.homeAssistant);
+    haBroker = new SseBroker();
+    haClient.on('snapshot', (snap) => haBroker.broadcast('snapshot', snap));
+    haClient.on('state', (evt) => haBroker.broadcast('state', evt));
+    haClient.on('disconnect', () => haBroker.broadcast('offline', { connected: false }));
+    haClient.start();
+  }
+
   const app = express();
+  app.use(express.json({ limit: '64kb' }));
   app.get('/api/stats', (_req, res) => res.json(poller.getState()));
 
   app.get('/api/history', (req, res) => {
@@ -158,6 +185,77 @@ function main() {
       res.status(500).json({ error: err.message });
     }
   });
+
+  if (config.homeAssistant) {
+    app.get('/lights', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'lights.html')));
+
+    app.get('/api/lights', (_req, res) => {
+      if (!haClient.isConnected()) {
+        return res.status(503).json({ error: 'Home Assistant offline' });
+      }
+      res.json(haClient.getSnapshot());
+    });
+
+    app.post('/api/lights/:entity_id', async (req, res) => {
+      const entityId = req.params.entity_id;
+      if (!entityId.startsWith('light.')) {
+        return res.status(400).json({ error: 'entity_id must be a light.* entity' });
+      }
+      const { on, brightness_pct, rgb_color } = req.body || {};
+      const allowed = new Set(['on', 'brightness_pct', 'rgb_color']);
+      for (const k of Object.keys(req.body || {})) {
+        if (!allowed.has(k)) return res.status(400).json({ error: `unknown field: ${k}` });
+      }
+      try {
+        if (on === false && brightness_pct == null && rgb_color == null) {
+          await haClient.callService('light', 'turn_off', { entity_id: entityId });
+        } else {
+          const data = { entity_id: entityId };
+          if (brightness_pct != null) {
+            if (typeof brightness_pct !== 'number' || brightness_pct < 0 || brightness_pct > 100) {
+              return res.status(400).json({ error: 'brightness_pct must be 0..100' });
+            }
+            data.brightness = pctToBrightness(brightness_pct);
+          }
+          if (rgb_color != null) {
+            if (
+              !Array.isArray(rgb_color) || rgb_color.length !== 3 ||
+              !rgb_color.every((c) => typeof c === 'number' && c >= 0 && c <= 255)
+            ) {
+              return res.status(400).json({ error: 'rgb_color must be [r,g,b] each 0..255' });
+            }
+            data.rgb_color = rgb_color;
+          }
+          await haClient.callService('light', 'turn_on', data);
+        }
+        res.json({ ok: true });
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+    });
+
+    app.post('/api/scenes/:entity_id/activate', async (req, res) => {
+      const entityId = req.params.entity_id;
+      if (!entityId.startsWith('scene.')) {
+        return res.status(400).json({ error: 'entity_id must be a scene.* entity' });
+      }
+      try {
+        await haClient.callService('scene', 'turn_on', { entity_id: entityId });
+        res.json({ ok: true });
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+    });
+
+    app.get('/api/lights/stream', (req, res) => {
+      haBroker.addClient(res);
+      if (haClient.isConnected()) {
+        res.write(`event: snapshot\ndata: ${JSON.stringify(haClient.getSnapshot())}\n\n`);
+      } else {
+        res.write(`event: offline\ndata: ${JSON.stringify({ connected: false })}\n\n`);
+      }
+    });
+  }
 
   if (config.plan) {
     app.get('/plan', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'plan.html')));

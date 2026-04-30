@@ -119,6 +119,36 @@ A threshold must hold continuously for `forMs` before firing. Reachability (scra
 
 Guests deleted from Proxmox are detected automatically: on the next poll where the host is reachable but the guest is no longer in `/cluster/resources`, any stuck firing alerts for it auto-resolve and its state is forgotten. No manual cleanup needed when you destroy an LXC/VM.
 
+## Hue lights via Home Assistant
+
+Optional `/lights` page that lists, controls, and live-updates Philips Hue (or any HA-managed) lights and scenes through a thin proxy in front of Home Assistant. The dashboard never sees the HA token; the backend holds a single WebSocket to HA and fans events out to all connected browsers via Server-Sent Events.
+
+**Mint a token**
+
+1. Open HA → click your user avatar (bottom-left) → **Long-Lived Access Tokens**.
+2. Create Token, name it `dashboard`, copy the value (shown once).
+
+**Configure**
+
+Uncomment the `homeAssistant` block in `config.js`:
+
+```js
+homeAssistant: {
+  url: "http://homeassistant.local:8123",
+  token: "paste-long-lived-token-here",
+},
+```
+
+Restart the dashboard. A `lights` link appears in the header; `/lights` is also reachable directly. Omit the block entirely to disable.
+
+**How it works**
+
+- Backend opens one WS to `<HA_URL>/api/websocket`, authenticates with the long-lived token, fetches the area / device / entity registries, subscribes to `state_changed` (filtered to `light.*` and `scene.*`), and reconnects with exponential backoff (1s → 30s, jittered) on disconnect.
+- REST commands go through `POST /api/lights/:entity_id` (`{ on?, brightness_pct?, rgb_color? }`) and `POST /api/scenes/:entity_id/activate`. Brightness is `0..100` on the wire and converted to HA's `0..255` server-side.
+- The frontend subscribes to `GET /api/lights/stream` (SSE). The first event is a full snapshot; subsequent events are per-entity diffs. Multiple tabs share the single upstream WS.
+- When HA is unreachable, the page shows a `home-assistant offline — reconnecting…` banner; commands still queue but `GET /api/lights` returns `503 Home Assistant offline` until the WS reconnects.
+- Lights/scenes are grouped by HA "area". Anything without an area lands in `Unassigned`. Color picker is shown only for bulbs whose `supported_color_modes` includes `hs`/`rgb`/`rgbw`/`rgbww`/`xy`. Unreachable bulbs (`state == "unavailable"`) render greyed out and disabled.
+
 ## Known limitations
 
 - **QEMU VM disk usage** reports as `0 B / 0 B` unless `qemu-guest-agent` is installed inside the guest. LXC containers report correctly.
@@ -136,4 +166,7 @@ See `docs/superpowers/specs/2026-04-15-homelab-dashboard-design.md` for the desi
 - `lib/storage.js` — SQLite time-series store with tiered retention
 - `lib/proxmox.js` — Proxmox API client (`/cluster/resources` + `/nodes/<name>/status`)
 - `lib/node_exporter.js` — Prometheus text parser + HTTP fetch
+- `lib/home_assistant.js` — Home Assistant WebSocket client + light/scene parsers (optional, enabled when `homeAssistant` block is in config)
+- `lib/sse_broker.js` — generic Server-Sent Events fan-out used to push HA state to browser clients
 - `public/index.html` — self-contained frontend (Dracula palette, JetBrains Mono, Rajdhani, uPlot modal)
+- `public/lights.html` — lights & scenes UI (optional)

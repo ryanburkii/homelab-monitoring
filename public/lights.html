@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>burkii.status / lights</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#282a36">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #282a36;
+  --bg-alt: #1e1f29;
+  --surface: #343746;
+  --current-line: #44475a;
+  --fg: #f8f8f2;
+  --comment: #6272a4;
+  --green: #50fa7b;
+  --yellow: #f1fa8c;
+  --orange: #ffb86c;
+  --red: #ff5555;
+  --pink: #ff79c6;
+  --purple: #bd93f9;
+  --cyan: #8be9fd;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Rajdhani, "JetBrains Mono", monospace;
+  min-height: 100vh;
+  color-scheme: dark;
+  overflow-x: hidden;
+}
+body::after {
+  content: ""; position: fixed; inset: 0;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+  pointer-events: none; z-index: 9999;
+}
+header {
+  border-bottom: 1px solid var(--current-line);
+  background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 100%);
+  padding: 1.5rem 2rem;
+  display: flex; align-items: center; gap: 1.5rem;
+}
+.back-link {
+  font-family: "JetBrains Mono", monospace; font-size: 0.85rem;
+  color: var(--comment); text-decoration: none;
+  border: 1px solid var(--current-line); padding: 0.3rem 0.7rem; border-radius: 4px;
+  transition: color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+}
+.back-link:hover { color: var(--purple); border-color: var(--purple); }
+h1 {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em;
+}
+h1 .bracket { color: var(--comment); }
+h1 .domain  { color: var(--purple); text-shadow: 0 0 24px rgba(189,147,249,0.45); }
+h1 .tld     { color: var(--pink);   text-shadow: 0 0 24px rgba(255,121,198,0.45); }
+h1 .sub     { color: var(--cyan); font-size: 0.85em; margin-left: 0.4ch; }
+.status-chip {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--comment);
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  margin-left: auto;
+}
+.status-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--comment); }
+.status-chip[data-status="up"]   .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-chip[data-status="down"] .dot { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
+.section-title {
+  font-family: Rajdhani, monospace;
+  font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--comment);
+}
+.section-title .accent { color: var(--pink); margin-right: 0.5ch; }
+
+.error-banner {
+  background: rgba(255,85,85,0.08); border: 1px solid var(--red); border-radius: 4px;
+  padding: 0.7rem 1rem; color: var(--red);
+  font-family: "JetBrains Mono", monospace; font-size: 0.85rem;
+  display: none;
+}
+.error-banner[data-show="true"] { display: block; }
+
+.room {
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.room::before {
+  content: ""; position: absolute; inset-block: 0; left: 0;
+  width: 3px; background: var(--purple); opacity: 0.8; border-radius: 4px 0 0 4px;
+}
+.room > summary {
+  list-style: none; cursor: pointer;
+  padding: 1rem 1.25rem 1rem 1.5rem;
+  display: flex; align-items: center; gap: 0.75rem;
+  user-select: none;
+}
+.room > summary::-webkit-details-marker { display: none; }
+.room > summary .chevron {
+  color: var(--pink); font-size: 0.8em; transition: transform 200ms var(--ease-out);
+}
+.room[open] > summary .chevron { transform: rotate(90deg); }
+.room-name {
+  font-family: Rajdhani, monospace; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; font-size: 1.05rem;
+}
+.room-summary {
+  margin-left: auto;
+  font-family: "JetBrains Mono", monospace; font-size: 0.78rem; color: var(--comment);
+}
+.room-body {
+  padding: 0 1.25rem 1.25rem 1.5rem;
+  border-top: 1px dashed var(--current-line);
+  display: flex; flex-direction: column; gap: 0.9rem;
+}
+
+.controls-block {
+  padding-top: 0.9rem;
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+.controls-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.label {
+  font-family: "JetBrains Mono", monospace; font-size: 0.78rem;
+  color: var(--comment); text-transform: uppercase;
+  min-width: 7rem;
+}
+.toggle {
+  background: transparent; border: 1px solid var(--current-line);
+  color: var(--fg); font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 0.4rem 0.9rem; border-radius: 4px; cursor: pointer;
+  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out);
+  min-height: 36px; min-width: 64px;
+}
+.toggle[data-on="true"] { border-color: var(--green); color: var(--green); }
+.toggle[data-on="false"] { color: var(--comment); }
+.toggle:active { transform: scale(0.97); }
+
+input[type=range].brightness {
+  flex: 1; min-width: 140px; accent-color: var(--purple);
+  height: 36px;
+}
+.brightness-value {
+  font-family: "JetBrains Mono", monospace; font-size: 0.78rem;
+  color: var(--fg); min-width: 3.5rem; text-align: right;
+}
+.swatch {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--current-line);
+  cursor: pointer; padding: 0;
+  position: relative; overflow: hidden;
+}
+.swatch input[type=color] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  width: 100%; height: 100%; border: none;
+}
+.scenes {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  padding-top: 0.6rem; border-top: 1px dashed var(--current-line);
+  margin-top: 0.4rem;
+}
+.scene-btn {
+  background: transparent;
+  border: 1px solid var(--current-line);
+  color: var(--cyan);
+  font-family: "JetBrains Mono", monospace; font-size: 0.75rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.4rem 0.8rem; border-radius: 4px;
+  cursor: pointer; min-height: 32px;
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.scene-btn:hover { border-color: var(--cyan); background: rgba(139,233,253,0.08); }
+.scene-btn:active { transform: scale(0.97); }
+
+.lights-list {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  padding-top: 0.6rem; border-top: 1px dashed var(--current-line);
+}
+.light {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.4rem 0;
+}
+.light[data-reachable="false"] {
+  opacity: 0.45; pointer-events: none;
+}
+.light-name {
+  font-family: "JetBrains Mono", monospace; font-size: 0.85rem;
+  min-width: 9rem;
+}
+.light-status-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--comment);
+}
+.light[data-on="true"] .light-status-dot {
+  background: var(--green); box-shadow: 0 0 6px var(--green);
+}
+
+.empty {
+  font-family: "JetBrains Mono", monospace; font-size: 0.85rem;
+  color: var(--comment); padding: 2rem; text-align: center;
+}
+
+@media (max-width: 600px) {
+  header { padding: 1rem 1.25rem; gap: 0.75rem; flex-wrap: wrap; }
+  main { padding: 1.25rem; }
+  .label { min-width: 5rem; }
+  .light-name { min-width: 7rem; }
+}
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="back-link">&larr; back</a>
+  <h1><span class="bracket">[</span><span class="domain">burkii</span><span class="tld">.status</span><span class="bracket">]</span> <span class="sub">/ lights</span></h1>
+  <div class="status-chip" id="connStatus" data-status="down"><span class="dot"></span><span id="connLabel">connecting</span></div>
+</header>
+<main>
+  <div class="error-banner" id="errorBanner">home-assistant offline — reconnecting…</div>
+  <section>
+    <div class="section-title"><span class="accent">&gt;</span>ROOMS</div>
+    <div id="rooms"></div>
+  </section>
+</main>
+<script>
+const DEBOUNCE_MS = 200;
+const state = { rooms: [], unassigned: { lights: [], scenes: [] }, byEntity: new Map() };
+let connected = false;
+
+function rgbToHex(rgb) {
+  if (!rgb) return '#888888';
+  return '#' + rgb.map((c) => Math.max(0, Math.min(255, c | 0)).toString(16).padStart(2, '0')).join('');
+}
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+}
+
+function setConnected(ok) {
+  connected = ok;
+  const chip = document.getElementById('connStatus');
+  chip.dataset.status = ok ? 'up' : 'down';
+  document.getElementById('connLabel').textContent = ok ? 'connected' : 'offline';
+  document.getElementById('errorBanner').dataset.show = ok ? 'false' : 'true';
+}
+
+function applySnapshot(snap) {
+  state.rooms = snap.rooms || [];
+  state.unassigned = snap.unassigned || { lights: [], scenes: [] };
+  state.byEntity = new Map();
+  for (const room of state.rooms) {
+    for (const l of room.lights) state.byEntity.set(l.entity_id, { light: l, room });
+  }
+  for (const l of state.unassigned.lights) state.byEntity.set(l.entity_id, { light: l, room: null });
+  render();
+}
+
+function applyStateChange(evt) {
+  const ref = state.byEntity.get(evt.entity_id);
+  if (evt.kind === 'light' && evt.state) {
+    if (ref) {
+      Object.assign(ref.light, evt.state);
+      updateLightDom(evt.entity_id);
+      if (ref.room) updateRoomSummary(ref.room.id);
+    }
+  } else if (evt.kind === 'scene') {
+    // Scene state changes don't affect UI directly; ignore.
+  }
+}
+
+function render() {
+  const container = document.getElementById('rooms');
+  if (!state.rooms.length && !state.unassigned.lights.length && !state.unassigned.scenes.length) {
+    container.innerHTML = '<div class="empty">no lights discovered</div>';
+    return;
+  }
+  const all = [...state.rooms];
+  if (state.unassigned.lights.length || state.unassigned.scenes.length) {
+    all.push({ id: '__unassigned', name: 'Unassigned', lights: state.unassigned.lights, scenes: state.unassigned.scenes });
+  }
+  container.innerHTML = '';
+  for (const room of all) {
+    container.appendChild(renderRoom(room));
+  }
+}
+
+function renderRoom(room) {
+  const details = document.createElement('details');
+  details.className = 'room';
+  details.dataset.roomId = room.id;
+
+  const summary = document.createElement('summary');
+  summary.innerHTML = `
+    <span class="chevron">▸</span>
+    <span class="room-name">${escapeHtml(room.name)}</span>
+    <span class="room-summary" data-room-summary></span>
+  `;
+  details.appendChild(summary);
+
+  const body = document.createElement('div');
+  body.className = 'room-body';
+
+  // Master controls (only if room has lights).
+  if (room.lights.length > 0) {
+    const ctrl = document.createElement('div');
+    ctrl.className = 'controls-block';
+    ctrl.innerHTML = `
+      <div class="controls-row">
+        <span class="label">all lights</span>
+        <button class="toggle" data-room-toggle data-on="false">off</button>
+        <input type="range" class="brightness" data-room-brightness min="0" max="100" value="0">
+        <span class="brightness-value" data-room-brightness-value>—</span>
+        <button class="swatch" data-room-swatch hidden style="background:#888888">
+          <input type="color" data-room-color value="#ffffff">
+        </button>
+      </div>
+    `;
+    body.appendChild(ctrl);
+  }
+
+  // Per-light list.
+  if (room.lights.length > 0) {
+    const list = document.createElement('div');
+    list.className = 'lights-list';
+    for (const light of room.lights) list.appendChild(renderLight(light));
+    body.appendChild(list);
+  }
+
+  // Scenes.
+  if (room.scenes.length > 0) {
+    const scenes = document.createElement('div');
+    scenes.className = 'scenes';
+    for (const s of room.scenes) {
+      const btn = document.createElement('button');
+      btn.className = 'scene-btn';
+      btn.textContent = s.name;
+      btn.dataset.sceneId = s.entity_id;
+      scenes.appendChild(btn);
+    }
+    body.appendChild(scenes);
+  }
+
+  details.appendChild(body);
+  updateRoomSummaryDom(details, room);
+  return details;
+}
+
+function renderLight(light) {
+  const row = document.createElement('div');
+  row.className = 'light';
+  row.dataset.entityId = light.entity_id;
+  row.dataset.on = String(light.on);
+  row.dataset.reachable = String(light.reachable);
+  const swatchHtml = light.supports_color
+    ? `<button class="swatch" data-light-swatch style="background:${rgbToHex(light.rgb)}"><input type="color" data-light-color value="${rgbToHex(light.rgb)}"></button>`
+    : '';
+  row.innerHTML = `
+    <span class="light-status-dot"></span>
+    <span class="light-name">${escapeHtml(light.name)}</span>
+    <button class="toggle" data-light-toggle data-on="${light.on}">${light.on ? 'on' : 'off'}</button>
+    <input type="range" class="brightness" data-light-brightness min="0" max="100" value="${light.brightness_pct ?? 0}">
+    <span class="brightness-value" data-light-brightness-value>${light.reachable ? `${light.brightness_pct ?? 0}%` : '—'}</span>
+    ${swatchHtml}
+  `;
+  return row;
+}
+
+function updateLightDom(entityId) {
+  const row = document.querySelector(`.light[data-entity-id="${cssEscape(entityId)}"]`);
+  if (!row) return;
+  const ref = state.byEntity.get(entityId);
+  if (!ref) return;
+  const l = ref.light;
+  row.dataset.on = String(l.on);
+  row.dataset.reachable = String(l.reachable);
+  const toggle = row.querySelector('[data-light-toggle]');
+  toggle.dataset.on = String(l.on);
+  toggle.textContent = l.on ? 'on' : 'off';
+  const slider = row.querySelector('[data-light-brightness]');
+  if (document.activeElement !== slider) slider.value = String(l.brightness_pct ?? 0);
+  row.querySelector('[data-light-brightness-value]').textContent =
+    l.reachable ? `${l.brightness_pct ?? 0}%` : '—';
+  const swatch = row.querySelector('[data-light-swatch]');
+  if (swatch && l.rgb) {
+    swatch.style.background = rgbToHex(l.rgb);
+    const colorInput = swatch.querySelector('[data-light-color]');
+    if (colorInput) colorInput.value = rgbToHex(l.rgb);
+  }
+}
+
+function updateRoomSummary(roomId) {
+  const details = document.querySelector(`.room[data-room-id="${cssEscape(roomId)}"]`);
+  if (!details) return;
+  const room = [...state.rooms, { id: '__unassigned', lights: state.unassigned.lights, scenes: state.unassigned.scenes }]
+    .find((r) => r.id === roomId);
+  if (room) updateRoomSummaryDom(details, room);
+}
+
+function updateRoomSummaryDom(details, room) {
+  const onCount = room.lights.filter((l) => l.on && l.reachable).length;
+  const total = room.lights.length;
+  const summarySpan = details.querySelector('[data-room-summary]');
+  if (summarySpan) summarySpan.textContent = `${onCount}/${total} on${room.scenes.length ? ` · ${room.scenes.length} scenes` : ''}`;
+
+  // Master toggle reflects "any on".
+  const toggle = details.querySelector('[data-room-toggle]');
+  if (toggle) {
+    const anyOn = onCount > 0;
+    toggle.dataset.on = String(anyOn);
+    toggle.textContent = anyOn ? 'on' : 'off';
+  }
+  const slider = details.querySelector('[data-room-brightness]');
+  const sliderVal = details.querySelector('[data-room-brightness-value]');
+  if (slider && sliderVal) {
+    const onLights = room.lights.filter((l) => l.on && l.reachable);
+    const avg = onLights.length
+      ? Math.round(onLights.reduce((s, l) => s + (l.brightness_pct ?? 0), 0) / onLights.length)
+      : 0;
+    if (document.activeElement !== slider) slider.value = String(avg);
+    sliderVal.textContent = onLights.length ? `${avg}%` : '—';
+  }
+  const colorBulbs = room.lights.filter((l) => l.supports_color);
+  const swatch = details.querySelector('[data-room-swatch]');
+  if (swatch) {
+    swatch.hidden = colorBulbs.length === 0;
+    const first = colorBulbs.find((l) => l.rgb);
+    if (first) swatch.style.background = rgbToHex(first.rgb);
+  }
+}
+
+function cssEscape(s) {
+  if (window.CSS && CSS.escape) return CSS.escape(s);
+  return String(s).replace(/"/g, '\\"');
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+const debounceTimers = new Map();
+function debounceCall(key, fn, ms = DEBOUNCE_MS) {
+  if (debounceTimers.has(key)) clearTimeout(debounceTimers.get(key));
+  debounceTimers.set(key, setTimeout(() => { debounceTimers.delete(key); fn(); }, ms));
+}
+
+async function postLight(entityId, body) {
+  try {
+    const res = await fetch(`/api/lights/${encodeURIComponent(entityId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) console.warn('[lights] command failed', entityId, await res.text());
+  } catch (err) {
+    console.warn('[lights] command error', err.message);
+  }
+}
+
+async function activateScene(entityId) {
+  try {
+    await fetch(`/api/scenes/${encodeURIComponent(entityId)}/activate`, { method: 'POST' });
+  } catch (err) {
+    console.warn('[scenes] activate failed', err.message);
+  }
+}
+
+document.getElementById('rooms').addEventListener('click', (e) => {
+  const sceneBtn = e.target.closest('.scene-btn');
+  if (sceneBtn) {
+    activateScene(sceneBtn.dataset.sceneId);
+    return;
+  }
+  const lightToggle = e.target.closest('[data-light-toggle]');
+  if (lightToggle) {
+    const row = lightToggle.closest('.light');
+    const entityId = row.dataset.entityId;
+    const newOn = lightToggle.dataset.on !== 'true';
+    // Optimistic.
+    lightToggle.dataset.on = String(newOn);
+    lightToggle.textContent = newOn ? 'on' : 'off';
+    row.dataset.on = String(newOn);
+    postLight(entityId, { on: newOn });
+    return;
+  }
+  const roomToggle = e.target.closest('[data-room-toggle]');
+  if (roomToggle) {
+    const details = roomToggle.closest('.room');
+    const roomId = details.dataset.roomId;
+    const room = [...state.rooms, { id: '__unassigned', lights: state.unassigned.lights }]
+      .find((r) => r.id === roomId);
+    if (!room) return;
+    const newOn = roomToggle.dataset.on !== 'true';
+    roomToggle.dataset.on = String(newOn);
+    roomToggle.textContent = newOn ? 'on' : 'off';
+    for (const l of room.lights) {
+      if (l.reachable) postLight(l.entity_id, { on: newOn });
+    }
+    return;
+  }
+});
+
+document.getElementById('rooms').addEventListener('input', (e) => {
+  const lightSlider = e.target.closest('[data-light-brightness]');
+  if (lightSlider) {
+    const row = lightSlider.closest('.light');
+    const entityId = row.dataset.entityId;
+    const pct = Number(lightSlider.value);
+    row.querySelector('[data-light-brightness-value]').textContent = `${pct}%`;
+    debounceCall(`light:${entityId}`, () => postLight(entityId, { on: pct > 0, brightness_pct: pct }));
+    return;
+  }
+  const roomSlider = e.target.closest('[data-room-brightness]');
+  if (roomSlider) {
+    const details = roomSlider.closest('.room');
+    const roomId = details.dataset.roomId;
+    const pct = Number(roomSlider.value);
+    details.querySelector('[data-room-brightness-value]').textContent = `${pct}%`;
+    const room = [...state.rooms, { id: '__unassigned', lights: state.unassigned.lights }]
+      .find((r) => r.id === roomId);
+    if (!room) return;
+    debounceCall(`room:${roomId}`, () => {
+      for (const l of room.lights) {
+        if (l.reachable) postLight(l.entity_id, { on: pct > 0, brightness_pct: pct });
+      }
+    });
+    return;
+  }
+});
+
+document.getElementById('rooms').addEventListener('change', (e) => {
+  const lightColor = e.target.closest('[data-light-color]');
+  if (lightColor) {
+    const row = lightColor.closest('.light');
+    const entityId = row.dataset.entityId;
+    const rgb = hexToRgb(lightColor.value);
+    if (rgb) {
+      const swatch = row.querySelector('[data-light-swatch]');
+      if (swatch) swatch.style.background = lightColor.value;
+      postLight(entityId, { on: true, rgb_color: rgb });
+    }
+    return;
+  }
+  const roomColor = e.target.closest('[data-room-color]');
+  if (roomColor) {
+    const details = roomColor.closest('.room');
+    const roomId = details.dataset.roomId;
+    const rgb = hexToRgb(roomColor.value);
+    if (!rgb) return;
+    const swatch = details.querySelector('[data-room-swatch]');
+    if (swatch) swatch.style.background = roomColor.value;
+    const room = [...state.rooms, { id: '__unassigned', lights: state.unassigned.lights }]
+      .find((r) => r.id === roomId);
+    if (!room) return;
+    for (const l of room.lights) {
+      if (l.reachable && l.supports_color) postLight(l.entity_id, { on: true, rgb_color: rgb });
+    }
+    return;
+  }
+});
+
+let evtSource = null;
+function connect() {
+  if (evtSource) evtSource.close();
+  evtSource = new EventSource('/api/lights/stream');
+  evtSource.addEventListener('snapshot', (e) => {
+    setConnected(true);
+    try { applySnapshot(JSON.parse(e.data)); } catch {}
+  });
+  evtSource.addEventListener('state', (e) => {
+    try { applyStateChange(JSON.parse(e.data)); } catch {}
+  });
+  evtSource.addEventListener('offline', () => setConnected(false));
+  evtSource.onerror = () => {
+    setConnected(false);
+    // EventSource auto-reconnects. No manual retry needed.
+  };
+}
+
+connect();
+</script>
+</body>
+</html>
