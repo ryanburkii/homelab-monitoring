@@ -105,11 +105,17 @@ alerts: {
   },
   overrides: [
     { machine: "proxmox-internal", guest: "plex-lxc", cpuPct: 95 },
+    // Mute every alert for an on-demand guest you spin up and shut down frequently:
+    { machine: "proxmox-internal", guest: "test-vm", mute: true },
+    // Machine-level mute silences the host and all its guests:
+    // { machine: "proxmox-dmz", mute: true },
   ],
 },
 ```
 
 A threshold must hold continuously for `forMs` before firing. Reachability (scrape failure / machine down) fires immediately. One notification on fire, one on resolve — no re-notify. Events persist to SQLite (`alert_events` table, keeps last 1000 rows or 90 days) and render in the dashboard's **Alerts** section (active list + collapsible history). Omit the `alerts` block entirely to disable.
+
+`mute: true` on an override skips all evaluation (cpu/mem/disk/reachability) for that machine/guest. Any alerts already firing for it auto-resolve on the next poll, so they clear from ntfy and the active list. Drop the override to re-enable.
 
 ## Known limitations
 

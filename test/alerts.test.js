@@ -295,6 +295,83 @@ test('AlertManager.#notify: non-2xx ntfy response logs error but does not throw'
   }
 });
 
+test('AlertManager.evaluate: mute=true on guest skips all alert evaluation', async () => {
+  const calls = [];
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig([{ machine: 'm', guest: 'g1', mute: true }]),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+  const host = { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const hotGuest = { name: 'g1', status: 'running', cpuPct: 99, memUsed: 99, memTotal: 100, diskUsed: 99, diskTotal: 100 };
+  const mk = (guest) => ({
+    lastPoll: null, globalStatus: 'up',
+    machines: { m: { type: 'proxmox', status: 'up', host, guests: [guest] } },
+  });
+  // Hot for well past forMs — would normally fire cpu/mem/disk
+  await mgr.evaluate(mk(hotGuest), 0);
+  await mgr.evaluate(mk(hotGuest), 60_000);
+  await mgr.evaluate(mk(hotGuest), 120_000);
+  // Then guest goes away — would normally fire reachability
+  await mgr.evaluate(mk({ ...hotGuest, status: 'stopped' }), 130_000);
+  assert.equal(calls.length, 0);
+  assert.equal(mgr.getActive().length, 0);
+  storage.close();
+});
+
+test('AlertManager.evaluate: adding mute auto-resolves currently-firing alerts', async () => {
+  const calls = [];
+  const storage = new Storage(':memory:');
+  let overrides = [];
+  // Wrap config so we can flip mute on after firing
+  const config = {
+    ntfy: { url: 'https://ntfy.sh/fake', firingPriority: 'high', resolvedPriority: 'default', firingTags: ['warning'], resolvedTags: ['white_check_mark'] },
+    defaults: { cpuPct: 90, memPct: 90, diskPct: 90, forMs: 60_000, reachability: true },
+    get overrides() { return overrides; },
+  };
+  const mgr = new AlertManager({
+    config,
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+  const hot = { cpuPct: 95, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  await mgr.evaluate(mkState('m', hot), 0);
+  await mgr.evaluate(mkState('m', hot), 60_000);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].opts.headers.Title, /FIRING.*m.*cpu/);
+  // Mute the host — next eval should auto-resolve
+  overrides = [{ machine: 'm', mute: true }];
+  await mgr.evaluate(mkState('m', hot), 70_000);
+  assert.equal(calls.length, 2);
+  assert.match(calls[1].opts.headers.Title, /OK.*m.*cpu/);
+  assert.equal(mgr.getActive().length, 0);
+  // Subsequent polls while still muted: no new alerts
+  await mgr.evaluate(mkState('m', hot), 130_000);
+  assert.equal(calls.length, 2);
+  storage.close();
+});
+
+test('AlertManager.evaluate: machine-level mute silences host and all guests', async () => {
+  const calls = [];
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig([{ machine: 'm', mute: true }]),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+  const hotHost = { cpuPct: 99, memUsed: 99, memTotal: 100, diskUsed: 99, diskTotal: 100 };
+  const hotGuest = { name: 'g1', status: 'running', cpuPct: 99, memUsed: 99, memTotal: 100, diskUsed: 99, diskTotal: 100 };
+  const downState = { lastPoll: null, globalStatus: 'down', machines: { m: { type: 'proxmox', status: 'down', host: null, guests: [], error: 'boom' } } };
+  await mgr.evaluate({ lastPoll: null, globalStatus: 'up', machines: { m: { type: 'proxmox', status: 'up', host: hotHost, guests: [hotGuest] } } }, 0);
+  await mgr.evaluate({ lastPoll: null, globalStatus: 'up', machines: { m: { type: 'proxmox', status: 'up', host: hotHost, guests: [hotGuest] } } }, 60_000);
+  // Even when host goes down, no reachability alert
+  await mgr.evaluate(downState, 70_000);
+  assert.equal(calls.length, 0);
+  assert.equal(mgr.getActive().length, 0);
+  storage.close();
+});
+
 test('AlertManager.evaluate: ntfy title uses machine.label when set', async () => {
   const calls = [];
   const storage = new Storage(':memory:');

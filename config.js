@@ -73,6 +73,11 @@ module.exports = {
       // Dedicated-RAM guests: silence memory alerts (they're always near 100%)
       // { machine: "REPLACE_ME", guest: "REPLACE_ME_SURF",      memPct: 100 },
       // { machine: "REPLACE_ME", guest: "REPLACE_ME_MINECRAFT", memPct: 100 },
+      // Mute all alerts (cpu/mem/disk/reachability) for guests you spin up on demand.
+      // Any currently-firing alerts auto-resolve the next eval after `mute: true` is added.
+      // { machine: "proxmox-internal", guest: "test-vm", mute: true },
+      // Machine-level mute disables alerts for the host AND every guest on it:
+      // { machine: "proxmox-dmz", mute: true },
     ],
   },
 };
