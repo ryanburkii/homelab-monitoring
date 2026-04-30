@@ -117,6 +117,8 @@ A threshold must hold continuously for `forMs` before firing. Reachability (scra
 
 `mute: true` on an override skips all evaluation (cpu/mem/disk/reachability) for that machine/guest. Any alerts already firing for it auto-resolve on the next poll, so they clear from ntfy and the active list. Drop the override to re-enable.
 
+Guests deleted from Proxmox are detected automatically: on the next poll where the host is reachable but the guest is no longer in `/cluster/resources`, any stuck firing alerts for it auto-resolve and its state is forgotten. No manual cleanup needed when you destroy an LXC/VM.
+
 ## Known limitations
 
 - **QEMU VM disk usage** reports as `0 B / 0 B` unless `qemu-guest-agent` is installed inside the guest. LXC containers report correctly.

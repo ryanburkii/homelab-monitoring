@@ -372,6 +372,62 @@ test('AlertManager.evaluate: machine-level mute silences host and all guests', a
   storage.close();
 });
 
+test('AlertManager.evaluate: deleted guest resolves stuck alert and forgets state', async () => {
+  const calls = [];
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+  const host = { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const running = { name: 'g1', status: 'running', cpuPct: 0, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const stopped = { ...running, status: 'stopped' };
+  const mk = (guests) => ({
+    lastPoll: null, globalStatus: 'up',
+    machines: { m: { type: 'proxmox', status: 'up', host, guests } },
+  });
+  // Guest seen running, then stopped → reachability fires
+  await mgr.evaluate(mk([running]), 0);
+  await mgr.evaluate(mk([stopped]), 1000);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].opts.headers.Title, /FIRING.*m\/g1.*reachability/);
+  assert.equal(mgr.getActive().length, 1);
+  // Guest deleted from Proxmox — disappears from m.guests entirely
+  await mgr.evaluate(mk([]), 2000);
+  assert.equal(calls.length, 2);
+  assert.match(calls[1].opts.headers.Title, /OK.*m\/g1.*reachability/);
+  assert.equal(mgr.getActive().length, 0);
+  // Subsequent polls — no churn, state stays clean
+  await mgr.evaluate(mk([]), 3000);
+  assert.equal(calls.length, 2);
+  storage.close();
+});
+
+test('AlertManager.evaluate: deleted guest cleanup skipped when host is unreachable', async () => {
+  const calls = [];
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+  const host = { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const running = { name: 'g1', status: 'running', cpuPct: 0, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const stopped = { ...running, status: 'stopped' };
+  const mkUp = (guests) => ({ lastPoll: null, globalStatus: 'up', machines: { m: { type: 'proxmox', status: 'up', host, guests } } });
+  const downState = { lastPoll: null, globalStatus: 'down', machines: { m: { type: 'proxmox', status: 'down', host: null, guests: [], error: 'boom' } } };
+  await mgr.evaluate(mkUp([running]), 0);
+  await mgr.evaluate(mkUp([stopped]), 1000);
+  assert.equal(calls.length, 1);
+  // Host scrape fails → guests array is empty but we shouldn't decide they're deleted
+  await mgr.evaluate(downState, 2000);
+  // Host reachability fires, guest reachability stays firing (no resolve for g1)
+  const okCalls = calls.filter((c) => /OK.*g1.*reachability/.test(c.opts.headers.Title));
+  assert.equal(okCalls.length, 0, 'guest must NOT be marked resolved while host is down');
+  storage.close();
+});
+
 test('AlertManager.evaluate: ntfy title uses machine.label when set', async () => {
   const calls = [];
   const storage = new Storage(':memory:');
