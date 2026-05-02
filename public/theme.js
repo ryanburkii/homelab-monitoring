@@ -2,18 +2,28 @@
  * Reads/writes localStorage('homelab.theme') and mounts a :colorscheme picker
  * into <header>. The pre-paint <script> in each page's <head> applies the
  * stored theme before first paint to avoid FOUC.
+ *
+ * 'auto' tracks the OS via prefers-color-scheme and is the default for fresh
+ * visitors. Explicit picks (dracula / catppuccin-latte) are preserved.
  */
 (function () {
   'use strict';
 
   const STORAGE_KEY = 'homelab.theme';
-  const DEFAULT_THEME = 'dracula';
+  const DEFAULT_THEME = 'auto';
+  const AUTO_DARK = 'dracula';
+  const AUTO_LIGHT = 'catppuccin-latte';
 
   // To add a new theme: append entry, add palette block to theme.css.
   const THEMES = [
+    { id: 'auto',              label: 'auto (system)' },
     { id: 'dracula',           label: 'dracula',          themeColor: '#282a36' },
     { id: 'catppuccin-latte',  label: 'catppuccin-latte', themeColor: '#e6e9ef' },
   ];
+
+  const darkMQ = (typeof window !== 'undefined' && window.matchMedia)
+    ? window.matchMedia('(prefers-color-scheme: dark)')
+    : null;
 
   function getStoredTheme() {
     try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
@@ -23,21 +33,31 @@
   }
   function isKnown(id) { return THEMES.some((t) => t.id === id); }
 
+  // Resolve 'auto' to the concrete theme that should currently render.
+  function resolveAuto() {
+    return (darkMQ && darkMQ.matches) ? AUTO_DARK : AUTO_LIGHT;
+  }
+
   function applyTheme(id) {
-    const theme = THEMES.find((t) => t.id === id) || THEMES.find((t) => t.id === DEFAULT_THEME);
-    if (theme.id === DEFAULT_THEME) {
+    const requested = THEMES.find((t) => t.id === id) ? id : DEFAULT_THEME;
+    const concreteId = requested === 'auto' ? resolveAuto() : requested;
+    const concrete = THEMES.find((t) => t.id === concreteId);
+
+    if (concreteId === AUTO_DARK) {
       document.documentElement.removeAttribute('data-theme');
     } else {
-      document.documentElement.setAttribute('data-theme', theme.id);
+      document.documentElement.setAttribute('data-theme', concreteId);
     }
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme.themeColor);
-    storeTheme(theme.id);
-    return theme;
+    if (meta && concrete.themeColor) meta.setAttribute('content', concrete.themeColor);
+    storeTheme(requested);
+    return requested;
   }
 
   function currentThemeId() {
-    return document.documentElement.getAttribute('data-theme') || DEFAULT_THEME;
+    const stored = getStoredTheme();
+    if (stored && isKnown(stored)) return stored;
+    return DEFAULT_THEME;
   }
 
   function buildPicker() {
@@ -112,9 +132,18 @@
   }
 
   function mount() {
-    const stored = getStoredTheme();
-    if (stored && isKnown(stored)) applyTheme(stored);
-    // else: pre-paint script already set whatever was stored; if invalid/none, default Dracula renders.
+    // Re-apply on mount: pre-paint script handled the first paint, but this
+    // normalises stored value (e.g. legacy entries) and sets meta theme-color.
+    applyTheme(currentThemeId());
+
+    // Live-update when OS appearance flips, but only while we're in auto mode.
+    if (darkMQ) {
+      const onChange = () => {
+        if (currentThemeId() === 'auto') applyTheme('auto');
+      };
+      if (darkMQ.addEventListener) darkMQ.addEventListener('change', onChange);
+      else if (darkMQ.addListener) darkMQ.addListener(onChange);
+    }
 
     // Theme picker mounts only where a page explicitly requests it ([data-theme-mount]).
     // Sub-pages omit this so the header stays focused on page content.

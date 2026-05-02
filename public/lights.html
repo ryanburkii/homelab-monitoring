@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
-<script>(function(){try{var t=localStorage.getItem('homelab.theme');if(t&&t!=='dracula')document.documentElement.setAttribute('data-theme',t);}catch(e){}}());</script>
+<script>(function(){try{var t=localStorage.getItem('homelab.theme');if(!t||t==='auto'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dracula':'catppuccin-latte';}if(t&&t!=='dracula')document.documentElement.setAttribute('data-theme',t);}catch(e){}}());</script>
 <link rel="stylesheet" href="/theme.css">
 <style>
 body {
