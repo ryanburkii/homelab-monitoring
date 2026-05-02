@@ -244,15 +244,20 @@ main {
 <script src="/theme.js" defer></script>
 </head>
 <body>
+<div class="page-chrome">
 <header class="page-header page-header--sub">
   <a class="back-btn" href="/" aria-label="back to dashboard">&larr;</a>
   <span class="brand brand--compact">
     <span class="brand-mark">burkii</span><span class="brand-sub">/chat</span>
   </span>
-  <div class="header-tools">
-    <div class="status-chip" id="statusChip" data-status="ready"><span class="dot"></span><span id="statusLabel">ready</span></div>
+  <div class="header-chrome">
+    <span data-theme-mount></span>
   </div>
 </header>
+<div class="page-subbar">
+  <div class="status-chip" id="statusChip" data-status="ready"><span class="dot"></span><span id="statusLabel">ready</span></div>
+</div>
+</div>
 <main>
   <div class="transcript" id="transcript">
     <div class="empty-state" id="emptyState">
