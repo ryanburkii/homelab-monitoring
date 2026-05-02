@@ -119,6 +119,23 @@ A threshold must hold continuously for `forMs` before firing. Reachability (scra
 
 Guests deleted from Proxmox are detected automatically: on the next poll where the host is reachable but the guest is no longer in `/cluster/resources`, any stuck firing alerts for it auto-resolve and its state is forgotten. No manual cleanup needed when you destroy an LXC/VM.
 
+## Weather widget (landing page)
+
+Optional weather chip in the landing-page header showing current temperature + conditions, with a click-to-open dropdown that has feels-like, humidity, wind, sunrise/sunset, and a 7-day forecast. Powered by [Open-Meteo](https://open-meteo.com) — no API key.
+
+Add a `weather` block to `config.js`:
+
+```js
+weather: {
+  latitude: 40.7128,
+  longitude: -74.0060,
+  label: "home",        // optional; shown in the dropdown
+  unit: "fahrenheit",   // optional; "celsius" (default) | "fahrenheit"
+},
+```
+
+The server proxies Open-Meteo and caches the response for 10 minutes; if a refresh fails it serves the last good response with a `cached — last fetch failed` notice. Omit the block to hide the chip entirely.
+
 ## Hue lights via Home Assistant
 
 Optional `/lights` page that lists, controls, and live-updates Philips Hue (or any HA-managed) lights and scenes through a thin proxy in front of Home Assistant. The dashboard never sees the HA token; the backend holds a single WebSocket to HA and fans events out to all connected browsers via Server-Sent Events.

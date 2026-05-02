@@ -68,6 +68,25 @@ function validateConfig(cfg) {
       if (!cfg.plan.guest) errors.push('plan.guest is required');
     }
   }
+  if (cfg.weather !== undefined) {
+    const w = cfg.weather;
+    if (!w || typeof w !== 'object') {
+      errors.push('weather must be an object');
+    } else {
+      if (typeof w.latitude !== 'number' || w.latitude < -90 || w.latitude > 90) {
+        errors.push('weather.latitude must be a number in [-90,90]');
+      }
+      if (typeof w.longitude !== 'number' || w.longitude < -180 || w.longitude > 180) {
+        errors.push('weather.longitude must be a number in [-180,180]');
+      }
+      if (w.label !== undefined && (typeof w.label !== 'string' || !w.label)) {
+        errors.push('weather.label must be a non-empty string if set');
+      }
+      if (w.unit !== undefined && !['celsius', 'fahrenheit'].includes(w.unit)) {
+        errors.push("weather.unit must be 'celsius' or 'fahrenheit' if set");
+      }
+    }
+  }
   if (cfg.homeAssistant !== undefined) {
     const ha = cfg.homeAssistant;
     if (!ha || typeof ha !== 'object') {
@@ -321,6 +340,57 @@ function main() {
         }
       } catch (err) {
         res.status(502).json({ error: `Plan API: ${err.message}` });
+      }
+    });
+  }
+
+  if (config.weather) {
+    const WEATHER_TTL_MS = 10 * 60 * 1000;
+    let weatherCache = null;
+    let weatherCacheAt = 0;
+    let weatherInflight = null;
+
+    async function fetchWeather() {
+      const unit = config.weather.unit || 'celsius';
+      const url = new URL('https://api.open-meteo.com/v1/forecast');
+      url.searchParams.set('latitude', String(config.weather.latitude));
+      url.searchParams.set('longitude', String(config.weather.longitude));
+      url.searchParams.set('current', 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day');
+      url.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset');
+      url.searchParams.set('temperature_unit', unit);
+      url.searchParams.set('wind_speed_unit', 'kmh');
+      url.searchParams.set('timezone', 'auto');
+      url.searchParams.set('forecast_days', '7');
+      const resp = await globalThis.fetch(url.toString(), { signal: AbortSignal.timeout(8000) });
+      if (!resp.ok) throw new Error(`Open-Meteo HTTP ${resp.status}`);
+      const data = await resp.json();
+      return {
+        label: config.weather.label || null,
+        unit,
+        current: data.current || null,
+        daily: data.daily || null,
+        fetchedAt: Date.now(),
+      };
+    }
+
+    app.get('/api/weather', async (_req, res) => {
+      const now = Date.now();
+      if (weatherCache && now - weatherCacheAt < WEATHER_TTL_MS) {
+        return res.json(weatherCache);
+      }
+      try {
+        if (!weatherInflight) {
+          weatherInflight = fetchWeather().finally(() => { weatherInflight = null; });
+        }
+        const fresh = await weatherInflight;
+        weatherCache = fresh;
+        weatherCacheAt = Date.now();
+        res.json(weatherCache);
+      } catch (err) {
+        if (weatherCache) {
+          return res.json({ ...weatherCache, stale: true, error: err.message });
+        }
+        res.status(502).json({ error: err.message });
       }
     });
   }

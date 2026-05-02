@@ -57,6 +57,16 @@ module.exports = {
   //   conversationLanguage: "en",
   // },
 
+  // Weather widget on the landing page. Powered by Open-Meteo (no API key).
+  // Omit this block to hide the weather chip entirely. Coords don't need to be
+  // exact — the nearest grid cell is used. unit defaults to "celsius".
+  // weather: {
+  //   latitude: 40.7128,
+  //   longitude: -74.0060,
+  //   label: "home",        // shown in the dropdown panel
+  //   unit: "fahrenheit",   // "celsius" | "fahrenheit"
+  // },
+
   // Plan Player Analytics integration — adds a Minecraft analytics page.
   // Set machine/guest to the VM or LXC running the Minecraft server.
   plan: {

@@ -219,6 +219,42 @@ app.get('/monitoring', (_req, res) => res.sendFile(path.join(__dirname, 'public'
 app.get('/lights', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'lights.html')));
 app.get('/chat', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
 
+// ── Weather mock (Open-Meteo emulation) ────────────────
+app.get('/api/weather', (_req, res) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    return d;
+  });
+  const codes = [1, 2, 3, 61, 80, 95, 0];
+  const sunrise = days.map((d) => `${d.toISOString().slice(0, 10)}T06:42`);
+  const sunset = days.map((d) => `${d.toISOString().slice(0, 10)}T20:18`);
+  res.json({
+    label: 'Dev City',
+    unit: 'celsius',
+    current: {
+      temperature_2m: 18.4 + Math.sin(Date.now() / 60000) * 1.2,
+      apparent_temperature: 17.1,
+      relative_humidity_2m: 64,
+      weather_code: 2,
+      wind_speed_10m: 11.5,
+      is_day: 1,
+    },
+    daily: {
+      time: days.map((d) => d.toISOString().slice(0, 10)),
+      weather_code: codes,
+      temperature_2m_max: [21, 22, 19, 17, 18, 24, 26],
+      temperature_2m_min: [11, 12, 10, 9, 10, 13, 15],
+      precipitation_probability_max: [10, 20, 60, 80, 70, 5, 0],
+      sunrise,
+      sunset,
+    },
+    fetchedAt: Date.now(),
+  });
+});
+
 // ── Chat mock (Home Assistant /api/conversation/process emulation) ─
 const chatSessions = new Map();
 const CHAT_LATENCY_MS = 650;
