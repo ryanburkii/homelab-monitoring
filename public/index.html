@@ -276,7 +276,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
         <div class="tile-foot"><span class="prompt">$</span><span id="monFoot">probing /api/stats…</span></div>
       </a>
 
-      <a class="tile" href="#" data-accent="network" data-status="idle" id="networkTile" rel="noopener" hidden>
+      <a class="tile" href="#" data-accent="network" data-status="up" id="networkTile" rel="noopener" hidden>
         <div class="tile-head">
           <span class="tile-status-dot"></span>
           <span class="tile-title">network</span>
@@ -289,7 +289,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
         <div class="tile-foot"><span class="prompt">$</span>launch unifi app</div>
       </a>
 
-      <a class="tile" href="/lights" data-accent="lights" data-status="idle" id="lightsTile" hidden>
+      <a class="tile" href="/lights" data-accent="lights" data-status="up" id="lightsTile" hidden>
         <div class="tile-head">
           <span class="tile-status-dot"></span>
           <span class="tile-title">lights</span>
@@ -302,7 +302,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
         <div class="tile-foot"><span class="prompt">$</span><span id="lightsFoot">probing /api/lights…</span></div>
       </a>
 
-      <a class="tile" href="/chat" data-accent="chat" data-status="idle" id="chatTile" hidden>
+      <a class="tile" href="/chat" data-accent="chat" data-status="up" id="chatTile" hidden>
         <div class="tile-head">
           <span class="tile-status-dot"></span>
           <span class="tile-title">chat</span>
@@ -405,7 +405,7 @@ function setChatTile(haAvailable, haOnline) {
     return;
   }
   tile.classList.remove('unavailable');
-  tile.dataset.status = 'active';
+  tile.dataset.status = 'up';
   footEl.textContent = 'via home assistant assist';
   if (!chatAgentInfoFetched) {
     chatAgentInfoFetched = true;
@@ -466,7 +466,7 @@ function renderLights(snap) {
   if (total === 0) {
     onEl.innerHTML = `<span class="dim">no lights detected</span>`;
     roomsEl.innerHTML = `<span class="dim">—</span>`;
-    tile.dataset.status = 'idle';
+    tile.dataset.status = 'up';
     footEl.textContent = 'idle';
     return;
   }
@@ -483,7 +483,7 @@ function renderLights(snap) {
   } else {
     roomsEl.innerHTML = `<span class="dim">no rooms grouped</span>`;
   }
-  tile.dataset.status = onCount > 0 ? 'active' : 'idle';
+  tile.dataset.status = 'up';
   footEl.textContent = onCount > 0 ? `${onCount} active` : 'idle';
 }
 
