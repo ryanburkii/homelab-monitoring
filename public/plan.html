@@ -331,17 +331,23 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 <script src="/theme.js" defer></script>
 </head>
 <body>
+<div class="page-chrome">
 <header class="page-header page-header--sub">
   <a class="back-btn" href="/" aria-label="back to dashboard">&larr;</a>
   <span class="brand brand--compact">
     <span class="brand-mark">burkii</span><span class="brand-sub">/minecraft</span>
   </span>
-  <div class="header-tools">
-    <div class="status-chip" id="planStatus" data-status="loading"><span class="dot"></span><span id="planStatusLabel">connecting</span></div>
-    <div class="last-poll"><span class="prompt">$</span><span id="lastRefresh">loading&hellip;</span></div>
-    <button class="refresh-btn" id="refreshBtn" title="Refresh">&#x27F3;</button>
+  <div class="header-chrome">
+    <span data-theme-mount></span>
   </div>
 </header>
+<div class="page-subbar">
+  <div class="status-chip" id="planStatus" data-status="loading"><span class="dot"></span><span id="planStatusLabel">connecting</span></div>
+  <div class="last-poll"><span class="prompt">$</span><span id="lastRefresh">loading&hellip;</span></div>
+  <div class="spacer"></div>
+  <button class="refresh-btn" id="refreshBtn" title="Refresh">&#x27F3;</button>
+</div>
+</div>
 <main>
   <div class="error-banner" id="errorBanner"></div>
 
