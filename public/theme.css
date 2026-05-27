@@ -665,6 +665,7 @@ h1 .tld {
   font-family: Rajdhani, "JetBrains Mono", monospace;
 }
 .tv-remote-sheet::backdrop { background: rgba(20, 20, 30, 0.55); backdrop-filter: blur(2px); }
+html:has(.tv-remote-sheet[open]) { overflow: hidden; }
 .tv-remote-sheet .sheet-glow {
   position: absolute; inset: -1px;
   border-radius: 9px;
