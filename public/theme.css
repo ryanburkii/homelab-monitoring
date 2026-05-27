@@ -622,3 +622,216 @@ h1 .tld {
   font-size: 0.65rem; color: var(--orange);
   text-transform: uppercase; letter-spacing: 0.1em;
 }
+
+/* ============================================================
+   TV remote (top-bar chip + <dialog> sheet)
+   Pages: index.html, lights.html
+   ============================================================ */
+
+.tv-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--comment);
+  cursor: pointer;
+  transition: color 140ms var(--ease-out),
+              border-color 140ms var(--ease-out),
+              background 140ms var(--ease-out);
+}
+.tv-chip[hidden] { display: none; }
+.tv-chip .tv-icon { display: inline-flex; width: 16px; height: 16px; }
+.tv-chip .tv-icon svg { width: 100%; height: 100%; }
+@media (hover: hover) and (pointer: fine) {
+  .tv-chip:hover { color: var(--pink); border-color: var(--pink); }
+}
+.tv-chip[aria-expanded="true"] { color: var(--pink); border-color: var(--pink); }
+.tv-chip[data-tv-on="true"] { color: var(--green); border-color: var(--green); }
+.tv-chip[data-tv-on="true"][aria-expanded="true"],
+.tv-chip[data-tv-on="true"]:hover { color: var(--pink); border-color: var(--pink); }
+
+.tv-remote-sheet {
+  position: fixed;
+  inset: auto;
+  margin: auto;
+  width: 320px;
+  max-width: 92vw;
+  padding: 0;
+  border: 1px solid var(--current-line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font-family: Rajdhani, "JetBrains Mono", monospace;
+}
+.tv-remote-sheet::backdrop { background: rgba(20, 20, 30, 0.55); backdrop-filter: blur(2px); }
+.tv-remote-sheet .sheet-glow {
+  position: absolute; inset: -1px;
+  border-radius: 9px;
+  pointer-events: none;
+  box-shadow: 0 0 24px rgba(var(--pink-rgb), 0.15);
+}
+.tv-remote-sheet .sheet-inner {
+  position: relative;
+  padding: 1rem 1.1rem 1.2rem;
+  display: flex; flex-direction: column;
+  gap: 0.85rem;
+}
+.tv-remote-sheet .sheet-head {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tv-remote-sheet .sheet-close {
+  background: transparent; border: 0; color: var(--comment);
+  font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0.2rem 0.4rem;
+  transition: color 140ms var(--ease-out);
+}
+.tv-remote-sheet .sheet-close:hover { color: var(--fg); }
+.tv-remote-sheet .sheet-section-label {
+  font-family: Rajdhani, monospace;
+  font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.14em; color: var(--comment);
+}
+.tv-remote-sheet .sheet-section-label .accent { color: var(--pink); margin-right: 0.4ch; }
+
+.tv-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--red);
+  text-align: center;
+  padding: 0.3rem 0; margin: -0.2rem 0 0;
+}
+.tv-status[hidden] { display: none; }
+
+.tv-power {
+  display: block;
+  width: 64px; height: 64px;
+  margin: 0.2rem auto 0;
+  border: 1px solid var(--current-line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--comment);
+  font-size: 1.6rem;
+  cursor: pointer;
+  transition: color 200ms var(--ease-out),
+              border-color 200ms var(--ease-out),
+              box-shadow 200ms var(--ease-out),
+              transform 160ms var(--ease-out);
+}
+.tv-power:active { transform: scale(0.96); }
+.tv-power[aria-pressed="true"] {
+  color: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 12px rgba(var(--green-rgb), 0.35);
+}
+.tv-power[aria-busy="true"] { opacity: 0.6; }
+.tv-power:disabled { opacity: 0.4; cursor: not-allowed; }
+.tv-power-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--comment);
+  text-align: center;
+  letter-spacing: 0.04em;
+  margin-top: -0.25rem;
+}
+
+.tv-volume-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.tv-vol-btn {
+  height: 56px;
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 140ms var(--ease-out),
+              border-color 140ms var(--ease-out),
+              background 140ms var(--ease-out),
+              transform 160ms var(--ease-out);
+}
+.tv-vol-btn:active { transform: scale(0.95); }
+@media (hover: hover) and (pointer: fine) {
+  .tv-vol-btn:hover {
+    border-color: var(--purple);
+    background: rgba(var(--purple-rgb), 0.06);
+  }
+}
+.tv-vol-btn[aria-pressed="true"] { color: var(--pink); border-color: var(--pink); }
+.tv-vol-btn[aria-busy="true"] { opacity: 0.6; }
+.tv-vol-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.tv-vol-mute::before {
+  content: "🔇";
+  font-size: 1rem;
+}
+.tv-vol-mute[aria-pressed="false"]::before { content: "🔊"; }
+
+.tv-shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+}
+.tv-shortcut {
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+  padding: 0.8rem 0.5rem 0.7rem;
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  transition: color 140ms var(--ease-out),
+              border-color 140ms var(--ease-out),
+              background 140ms var(--ease-out),
+              box-shadow 200ms var(--ease-out),
+              transform 160ms var(--ease-out);
+}
+.tv-shortcut:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .tv-shortcut:hover {
+    border-color: var(--pink);
+    background: rgba(var(--pink-rgb), 0.05);
+  }
+}
+.tv-shortcut[aria-current="true"] {
+  border-color: var(--pink);
+  color: var(--pink);
+  box-shadow: 0 0 10px rgba(var(--pink-rgb), 0.25);
+}
+.tv-shortcut[aria-busy="true"] { opacity: 0.6; }
+.tv-shortcut:disabled { opacity: 0.4; cursor: not-allowed; }
+.tv-shortcut .tv-shortcut-icon {
+  display: inline-flex; width: 28px; height: 28px;
+}
+.tv-shortcut .tv-shortcut-icon img {
+  width: 100%; height: 100%;
+  filter: invert(0);
+}
+.tv-shortcut .tv-shortcut-label { line-height: 1; }
+
+@keyframes tvErrShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-3px); }
+  40%, 80% { transform: translateX(3px); }
+}
+.tv-err {
+  animation: tvErrShake 400ms var(--ease-out);
+  border-color: var(--red) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-power,
+  .tv-vol-btn,
+  .tv-shortcut { transition-duration: 0ms !important; }
+  .tv-power[aria-pressed="true"] { box-shadow: none; }
+  .tv-shortcut[aria-current="true"] { box-shadow: none; }
+  .tv-err { animation: none; }
+}
